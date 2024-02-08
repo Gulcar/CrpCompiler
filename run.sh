@@ -1,2 +1,2 @@
 #!/bin/bash
-cargo run test.crp
+cargo run test.crp && ./a.out
