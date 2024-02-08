@@ -1,6 +1,9 @@
 use std::env;
 
 mod lexer;
+mod ast;
+
+use ast::ASTNode;
 
 fn print_usage_exit(exe_name: &str) -> ! {
     eprintln!("usage: {} <file> [options..]", exe_name);
@@ -28,7 +31,17 @@ fn main() {
         }
     }
 
-    let tokens = lexer::lex(&args[1]);
+    let tokens = match lexer::lex(&args[1]) {
+        Ok(tokens) => tokens,
+        Err(_) => {
+            println!("compilation failed (lexer error)");
+            std::process::exit(1)
+        }
+    };
 
-    dbg!(tokens);
+    dbg!(&tokens);
+
+    let ast = ASTNode::parse_root(&tokens);
+
+    dbg!(&ast);
 }
