@@ -17,14 +17,14 @@ pub enum Tok {
 }
 
 #[derive(Debug, PartialEq)]
-enum ParseErrorKind {
+enum LexErrorKind {
     InvalidDigit,
     InvalidCharacter,
 }
 
 #[derive(Debug, PartialEq)]
-struct ParseError {
-    kind: ParseErrorKind,
+struct LexError {
+    kind: LexErrorKind,
     word: String,
 }
 
@@ -58,7 +58,7 @@ pub fn lex(file_name: &str) -> Result<Vec<Tok>, ()> {
     }
 }
 
-fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), ParseError> {
+fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
     let mut trenutna_beseda = String::new();
 
     for c in line.chars() {
@@ -104,7 +104,7 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), ParseError> {
     Ok(())
 }
 
-fn word_to_tok(word: String) -> Result<Tok, ParseError> {
+fn word_to_tok(word: String) -> Result<Tok, LexError> {
     match word.as_str() {
         "func" => return Ok(Tok::Func),
         "int" => return Ok(Tok::Int),
@@ -113,12 +113,23 @@ fn word_to_tok(word: String) -> Result<Tok, ParseError> {
     }
 
     if word.chars().nth(0).unwrap().is_numeric() {
-        match word.parse() {
+        let mut base = 10;
+        let mut s = word.as_str();
+        if let Some(nov_s) = s.strip_prefix("0x") {
+            base = 16;
+            s = nov_s;
+        }
+        else if let Some(nov_s) = s.strip_prefix("0b") {
+            base = 2;
+            s = nov_s;
+        }
+        let s = s.replace('_', "");
+        match i32::from_str_radix(&s, base) {
             Ok(val) => return Ok(Tok::IntLiteral(val)),
             Err(e) => { 
                 match e.kind() {
-                    IntErrorKind::InvalidDigit => Err(ParseError {
-                        kind: ParseErrorKind::InvalidDigit,
+                    IntErrorKind::InvalidDigit => Err(LexError {
+                        kind: LexErrorKind::InvalidDigit,
                         word
                     }),
                     _ => panic!("error: {:?}", e),
@@ -131,8 +142,8 @@ fn word_to_tok(word: String) -> Result<Tok, ParseError> {
             return Ok(Tok::Identifier(word));
         }
         else {
-            return Err(ParseError {
-                kind: ParseErrorKind::InvalidCharacter,
+            return Err(LexError {
+                kind: LexErrorKind::InvalidCharacter,
                 word
             });
         }
@@ -192,10 +203,28 @@ mod tests {
         let line = "func main() int { return 2a; }";
         let mut lex = Vec::new();
         let result = lex_line(line, &mut lex);
-        assert_eq!(result, Err(ParseError {
-            kind: ParseErrorKind::InvalidDigit,
+        assert_eq!(result, Err(LexError {
+            kind: LexErrorKind::InvalidDigit,
             word: "2a".to_string()
         }));
+    }
+
+    #[test]
+    fn test_int_literals() {
+        let line = "{19 0x12 3 0b01001001 0b1010_1100}";
+        let expect: Vec<Tok> = vec![
+            Tok::OpenBrace,
+            Tok::IntLiteral(19),
+            Tok::IntLiteral(18),
+            Tok::IntLiteral(3),
+            Tok::IntLiteral(73),
+            Tok::IntLiteral(172),
+            Tok::CloseBrace,
+        ];
+        let mut lex = Vec::new();
+        let result = lex_line(line, &mut lex);
+        assert_eq!(result, Ok(()));
+        assert_eq!(lex, expect);
     }
 }
 
