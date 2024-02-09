@@ -6,7 +6,7 @@ mod lexer;
 mod ast;
 mod generator;
 
-use ast::ASTNode;
+use ast::ASTProgram;
 
 fn print_usage_exit(exe_name: &str) -> ! {
     eprintln!("usage: {} <file> [options..]", exe_name);
@@ -47,7 +47,8 @@ fn main() {
     };
     dbg!(&tokens);
 
-    let ast = ASTNode::parse_root(&tokens);
+    //let ast = ASTNode::parse_root(&tokens);
+    let ast = ASTProgram::parse(&tokens);
     dbg!(&ast);
 
     let mut file = match File::create(asm_file) {
@@ -69,8 +70,8 @@ fn main() {
         .output().unwrap();
 
     if nasm_output.status.success() == false {
-        dbg!(nasm_output);
-        println!("ERROR: nasm failed");
+        let stderr = String::from_utf8(nasm_output.stderr).unwrap();
+        println!("ERROR: nasm failed:\n{}", stderr);
         std::process::exit(1);
     }
 
@@ -79,8 +80,8 @@ fn main() {
         .output().unwrap();
 
     if gcc_output.status.success() == false {
-        dbg!(gcc_output);
-        println!("ERROR: gcc failed");
+        let stderr = String::from_utf8(gcc_output.stderr).unwrap();
+        println!("ERROR: gcc failed:\n{}", stderr);
         std::process::exit(1);
     }
 }

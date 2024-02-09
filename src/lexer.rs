@@ -14,6 +14,9 @@ pub enum Tok {
     OpenBrace,
     CloseBrace,
     Semicolon,
+    Negation, // -
+    BitwiseComplement, // ~
+    LogicalNegation, // !
 }
 
 #[derive(Debug, PartialEq)]
@@ -82,6 +85,9 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             '{' => Some(Tok::OpenBrace),
             '}' => Some(Tok::CloseBrace),
             ';' => Some(Tok::Semicolon),
+            '-' => Some(Tok::Negation),
+            '~' => Some(Tok::BitwiseComplement),
+            '!' => Some(Tok::LogicalNegation),
             _ => None,
         };
 
@@ -220,6 +226,25 @@ mod tests {
             Tok::IntLiteral(73),
             Tok::IntLiteral(172),
             Tok::CloseBrace,
+        ];
+        let mut lex = Vec::new();
+        let result = lex_line(line, &mut lex);
+        assert_eq!(result, Ok(()));
+        assert_eq!(lex, expect);
+    }
+
+    #[test]
+    fn test_negations() {
+        let line = "{-51 11 ~14 !1";
+        let expect: Vec<Tok> = vec![
+            Tok::OpenBrace,
+            Tok::Negation,
+            Tok::IntLiteral(51),
+            Tok::IntLiteral(11),
+            Tok::BitwiseComplement,
+            Tok::IntLiteral(14),
+            Tok::LogicalNegation,
+            Tok::IntLiteral(1),
         ];
         let mut lex = Vec::new();
         let result = lex_line(line, &mut lex);
