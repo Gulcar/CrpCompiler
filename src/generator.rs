@@ -26,7 +26,22 @@ fn write_asm_expression<W: Write>(ast_node: &ASTExpression, f: &mut W) -> io::Re
             writeln!(f, "\t\tmov rax, {}", val)?;
         },
         ASTExpression::UnaryOp(op, expr) => {
-            write_asm_expression(expr, f)?;
+            match op {
+                UnOp::Negation => {
+                    write_asm_expression(expr, f)?;
+                    writeln!(f, "\t\tneg rax")?;
+                },
+                UnOp::BitwiseComplement => {
+                    write_asm_expression(expr, f)?;
+                    writeln!(f, "\t\tnot rax")?;
+                },
+                UnOp::LogicalNegation => {
+                    write_asm_expression(expr, f)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tmov rax, 0")?; // mov da ne spremenim test flagov
+                    writeln!(f, "\t\tsete al")?; // set na 1 ce je prejsni test equal
+                }
+            }
         }
     }
     Ok(())

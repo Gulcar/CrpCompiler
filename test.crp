@@ -2,7 +2,7 @@
 # println "Pozdravljen svet %d", 10
 
 func main() int {
-    return 2;
+    return !--1;
 }
 
 #func test(int a) int {
