@@ -1,17 +1,19 @@
-use std::{env, fs::File};
+use ast::ASTProgram;
 use std::io::{self, Write};
 use std::process::Command;
+use std::{env, fs::File};
 
-mod lexer;
 mod ast;
 mod generator;
+mod lexer;
 
-use ast::ASTProgram;
+// https://norasandler.com/2017/11/29/Write-a-Compiler.html
 
 fn print_usage_exit(exe_name: &str) -> ! {
     eprintln!("usage: {} <file> [options..]", exe_name);
     eprintln!("options:");
-    eprintln!("  -v --verbose");
+    eprintln!("  -h --help");
+    eprintln!("  -o --output <file>");
     std::process::exit(1)
 }
 
@@ -24,18 +26,25 @@ fn main() {
 
     let source_file = &args[1];
     let asm_file = "a.asm";
-    let output_file = "a.out";
+    let mut output_file = "a.out";
 
-    for arg in &args[2..] {
-        match arg.as_str() {
-            "-v" | "--verbose" => {
-                println!("pozdravljen svet!");
+    let mut arg_i = 2;
+    while arg_i < args.len() {
+        match args[arg_i].as_str() {
+            "-h" | "--help" => {
+                print_usage_exit(&args[0]);
+            }
+            "-o" | "--output" => {
+                assert!(arg_i + 1 < args.len(), "missing file for output parameter");
+                output_file = &args[arg_i + 1];
+                arg_i += 1;
             }
             _ => {
-                eprintln!("ERROR: unknown argument: {}", arg);
+                eprintln!("ERROR: unknown argument: {}", args[arg_i]);
                 std::process::exit(1);
             }
         }
+        arg_i += 1;
     }
 
     let tokens = match lexer::lex(source_file) {
@@ -56,7 +65,7 @@ fn main() {
         Err(e) => {
             println!("failed to open file: {} ({})", asm_file, e);
             std::process::exit(1)
-        },
+        }
     };
 
     generator::write_asm(&ast, &mut file).unwrap();
@@ -77,6 +86,7 @@ fn main() {
 
     let gcc_output = Command::new("gcc")
         .arg("a.o")
+        .arg(format!("-o{}", output_file))
         .output().unwrap();
 
     if gcc_output.status.success() == false {

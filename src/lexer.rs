@@ -9,14 +9,17 @@ pub enum Tok {
     Func,
     Int,
     Return,
-    OpenParens,
-    CloseParens,
-    OpenBrace,
-    CloseBrace,
-    Semicolon,
-    Negation, // -
+    OpenParens,        // (
+    CloseParens,       // )
+    OpenBrace,         // {
+    CloseBrace,        // }
+    Semicolon,         // ;
+    Negation,          // -
     BitwiseComplement, // ~
-    LogicalNegation, // !
+    LogicalNegation,   // !
+    Addition,          // +
+    Multiplication,    // *
+    Division,          // /
 }
 
 #[derive(Debug, PartialEq)]
@@ -44,7 +47,7 @@ pub fn lex(file_name: &str) -> Result<Vec<Tok>, ()> {
         let line = line.unwrap();
 
         match lex_line(&line, &mut vec) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 println!("error parsing line {} ({:?}):\n{}", line_num, e, line);
                 ok = false;
@@ -88,6 +91,9 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             '-' => Some(Tok::Negation),
             '~' => Some(Tok::BitwiseComplement),
             '!' => Some(Tok::LogicalNegation),
+            '+' => Some(Tok::Addition),
+            '*' => Some(Tok::Multiplication),
+            '/' => Some(Tok::Division),
             _ => None,
         };
 
@@ -132,25 +138,22 @@ fn word_to_tok(word: String) -> Result<Tok, LexError> {
         let s = s.replace('_', "");
         match i32::from_str_radix(&s, base) {
             Ok(val) => return Ok(Tok::IntLiteral(val)),
-            Err(e) => { 
-                match e.kind() {
-                    IntErrorKind::InvalidDigit => Err(LexError {
-                        kind: LexErrorKind::InvalidDigit,
-                        word
-                    }),
-                    _ => panic!("error: {:?}", e),
-                }
-            }
+            Err(e) => match e.kind() {
+                IntErrorKind::InvalidDigit => Err(LexError {
+                    kind: LexErrorKind::InvalidDigit,
+                    word,
+                }),
+                _ => panic!("error: {:?}", e),
+            },
         }
     }
     else {
         if word.chars().all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit()) {
             return Ok(Tok::Identifier(word));
-        }
-        else {
+        } else {
             return Err(LexError {
                 kind: LexErrorKind::InvalidCharacter,
-                word
+                word,
             });
         }
     }
@@ -173,7 +176,7 @@ mod tests {
             Tok::Return,
             Tok::IntLiteral(2),
             Tok::Semicolon,
-            Tok::CloseBrace
+            Tok::CloseBrace,
         ];
         let mut lex = Vec::new();
         let result = lex_line(line, &mut lex);
@@ -196,7 +199,7 @@ mod tests {
             Tok::Return,
             Tok::IntLiteral(2),
             Tok::Semicolon,
-            Tok::CloseBrace
+            Tok::CloseBrace,
         ];
         let mut lex = Vec::new();
         let result = lex_line(line, &mut lex);
@@ -209,10 +212,13 @@ mod tests {
         let line = "func main() int { return 2a; }";
         let mut lex = Vec::new();
         let result = lex_line(line, &mut lex);
-        assert_eq!(result, Err(LexError {
-            kind: LexErrorKind::InvalidDigit,
-            word: "2a".to_string()
-        }));
+        assert_eq!(
+            result,
+            Err(LexError {
+                kind: LexErrorKind::InvalidDigit,
+                word: "2a".to_string()
+            })
+        );
     }
 
     #[test]
@@ -251,5 +257,24 @@ mod tests {
         assert_eq!(result, Ok(()));
         assert_eq!(lex, expect);
     }
-}
 
+    #[test]
+    fn test_binary_ops() {
+        let line = "5 +5 *1- 2 / 9";
+        let expect: Vec<Tok> = vec![
+            Tok::IntLiteral(5),
+            Tok::Addition,
+            Tok::IntLiteral(5),
+            Tok::Multiplication,
+            Tok::IntLiteral(1),
+            Tok::Negation,
+            Tok::IntLiteral(2),
+            Tok::Division,
+            Tok::IntLiteral(9),
+        ];
+        let mut lex = Vec::new();
+        let result = lex_line(line, &mut lex);
+        assert_eq!(result, Ok(()));
+        assert_eq!(lex, expect);
+    }
+}
