@@ -44,36 +44,39 @@ fn write_asm_expression<W: Write>(ast_node: &ASTExpression, f: &mut W) -> io::Re
             }
         }
         ASTExpression::BinaryOp(op, left, right) => {
-            todo!();
+            match op {
+                BinOp::Addition => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tadd rax, rcx")?;
+                }
+                BinOp::Subtraction => {
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tsub rax, rcx")?;
+                }
+                BinOp::Multiplication => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\timul rax, rcx")?;
+                }
+                BinOp::Division => {
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcqo")?;
+                    writeln!(f, "\t\tidiv rcx")?;
+                }
+            }
         }
     }
     Ok(())
 }
 
-/*
-pub fn write_asm<W: Write>(ast_node: &ASTProgram, f: &mut W) -> io::Result<()> {
-    match ast_node {
-        ASTNode::Program(func) => {
-            writeln!(f, "\t\tglobal main")?;
-            writeln!(f, "\t\tsection .text")?;
-            write_asm(func, f)?;
-        },
-        ASTNode::Function(ime, statement) => {
-            writeln!(f, "{}:", ime)?;
-            write_asm(statement, f)?;
-        },
-        ASTNode::Statement(expr) => {
-            write_asm(expr, f)?;
-            writeln!(f, "\t\tret")?;
-        },
-        ASTNode::ExpressionConst(val) => {
-            writeln!(f, "\t\tmov rax, {}", val)?;
-        }
-        _ => {
-            panic!("write_asm napaka");
-        }
-    }
-
-    Ok(())
-}
-*/

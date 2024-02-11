@@ -84,17 +84,17 @@ impl ASTExpression {
             }
         }
 
-        if *tokens.first().unwrap() == Tok::OpenParens &&
-            *tokens.last().unwrap() == Tok::CloseParens
-        {
-            return ASTExpression::parse(&tokens[1..(tokens.len() - 1)]);
-        }
-
         let mut depth = 0;
+        let mut ok_remove_parens = true;
 
         for (i, tok) in tokens.iter().enumerate().rev() {
             match tok {
-                Tok::OpenParens => depth += 1,
+                Tok::OpenParens => {
+                    depth += 1;
+                    if depth == 0 && i != 0 {
+                        ok_remove_parens = false;
+                    }
+                }
                 Tok::CloseParens => depth -= 1,
                 Tok::Addition => if depth == 0 {
                     return ASTExpression::BinaryOp(
@@ -115,6 +115,13 @@ impl ASTExpression {
         }
 
         assert_eq!(depth, 0, "mismatching parentheses");
+
+        if ok_remove_parens &&
+            *tokens.first().unwrap() == Tok::OpenParens &&
+            *tokens.last().unwrap() == Tok::CloseParens
+        {
+            return ASTExpression::parse(&tokens[1..(tokens.len() - 1)]);
+        }
 
         for (i, tok) in tokens.iter().enumerate().rev() {
             match tok {
@@ -151,7 +158,7 @@ impl ASTExpression {
                 let expr = ASTExpression::parse(&tokens[1..]);
                 ASTExpression::UnaryOp(UnOp::LogicalNegation, Box::new(expr))
             }
-            _ => panic!("parse error ni expression"),
+            _ => panic!("parse error ni unary expression {:?}", tokens[0]),
         }
     }
 }
