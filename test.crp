@@ -2,7 +2,7 @@
 # println "Pozdravljen svet %d", 10
 
 func main() int {
-    return ~1 - 2 + 3 * 5 / (3 - 1);
+    return (1 || 0 >= 2) && 5;
 }
 
 #func test(int a) int {

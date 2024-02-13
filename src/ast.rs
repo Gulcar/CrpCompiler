@@ -108,18 +108,18 @@ impl ASTExpression {
                 }
                 Tok::CloseParens => depth -= 1,
 
-                Tok::Addition => if depth == 0 && i != 0 {
-                    bin_ops.push((i, BinOp::Addition));
-                },
-                Tok::Negation => if depth == 0 && i != 0 {
-                    bin_ops.push((i, BinOp::Subtraction));
-                },
-                Tok::Multiplication => if depth == 0 && i != 0 {
-                    bin_ops.push((i, BinOp::Multiplication));
-                },
-                Tok::Division => if depth == 0 && i != 0 {
-                    bin_ops.push((i, BinOp::Division));
-                },
+                Tok::Addition => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Addition)); },
+                Tok::Negation => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Subtraction)); },
+                Tok::Multiplication => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Multiplication)); },
+                Tok::Division => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Division)); },
+                Tok::And => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::LogicalAnd)); },
+                Tok::Or => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::LogicalOr)); },
+                Tok::Equal => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Equal)); },
+                Tok::NotEqual => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::NotEqual)); },
+                Tok::LessThan => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::LessThan)); },
+                Tok::LessThanOrEqual => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::LessThanOrEqual)); },
+                Tok::GreaterThan => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::GreaterThan)); },
+                Tok::GreaterThanOrEqual => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::GreaterThanOrEqual)); },
                 _ => {}
             }
         }
@@ -273,4 +273,54 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn test_logical() {
+        let tokens = [
+            Tok::Func,
+            Tok::Identifier("main".to_string()),
+            Tok::OpenParens,
+            Tok::CloseParens,
+            Tok::Int,
+            Tok::OpenBrace,
+            Tok::Return,
+
+            Tok::OpenParens,
+            Tok::IntLiteral(1),
+            Tok::Or,
+            Tok::IntLiteral(0),
+            Tok::GreaterThanOrEqual,
+            Tok::IntLiteral(2),
+            Tok::CloseParens,
+            Tok::And,
+            Tok::IntLiteral(5),
+
+            Tok::Semicolon,
+            Tok::CloseBrace,
+        ];
+        assert_eq!(
+            ASTProgram::parse(&tokens),
+            ASTProgram {
+                func: ASTFunction {
+                    ime: "main".to_string(),
+                    statement: ASTStatement {
+                        expr: ASTExpression::BinaryOp(
+                            BinOp::LogicalAnd,
+                            Box::new(ASTExpression::BinaryOp(
+                                BinOp::LogicalOr,
+                                Box::new(ASTExpression::Const(1)),
+                                Box::new(ASTExpression::BinaryOp(
+                                    BinOp::GreaterThanOrEqual,
+                                    Box::new(ASTExpression::Const(0)),
+                                    Box::new(ASTExpression::Const(2))
+                                ))
+                            )),
+                            Box::new(ASTExpression::Const(5))
+                        )
+                    }
+                }
+            }
+        );
+    }
+
 }
