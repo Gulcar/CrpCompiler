@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::num::IntErrorKind;
+use std::str::Chars;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tok {
@@ -20,6 +21,14 @@ pub enum Tok {
     Addition,          // +
     Multiplication,    // *
     Division,          // /
+    And,               // &&
+    Or,                // ||
+    Equal,             // ==
+    NotEqual,          // !=
+    LessThan,          // <
+    LessThanOrEqual,   // <=
+    GreaterThan,       // >
+    GreaterThanOrEqual,// >=
 }
 
 #[derive(Debug, PartialEq)]
@@ -64,10 +73,24 @@ pub fn lex(file_name: &str) -> Result<Vec<Tok>, ()> {
     }
 }
 
+fn check_two_chars(c1: char, c2: char, curr_char: char, chars: &mut Chars) -> bool {
+    if curr_char == c1 {
+        if let Some(next_char) = chars.clone().next() {
+            if next_char == c2 {
+                chars.next(); // consume 1 character
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
     let mut trenutna_beseda = String::new();
 
-    for c in line.chars() {
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+
         if c == '#' {
             if trenutna_beseda.len() > 0 {
                 vec.push(word_to_tok(trenutna_beseda)?);
@@ -79,6 +102,24 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
                 vec.push(word_to_tok(trenutna_beseda)?);
                 trenutna_beseda = String::new();
             }
+            continue;
+        }
+
+        let dva_char;
+        if check_two_chars('&', '&', c, &mut chars) { dva_char = Some(Tok::And); }
+        else if check_two_chars('|', '|', c, &mut chars) { dva_char = Some(Tok::Or); }
+        else if check_two_chars('=', '=', c, &mut chars) { dva_char = Some(Tok::Equal); }
+        else if check_two_chars('!', '=', c, &mut chars) { dva_char = Some(Tok::NotEqual); }
+        else if check_two_chars('<', '=', c, &mut chars) { dva_char = Some(Tok::LessThanOrEqual); }
+        else if check_two_chars('>', '=', c, &mut chars) { dva_char = Some(Tok::GreaterThanOrEqual); }
+        else { dva_char = None; }
+
+        if let Some(tok) = dva_char {
+            if trenutna_beseda.len() > 0 {
+                vec.push(word_to_tok(trenutna_beseda)?);
+                trenutna_beseda = String::new();
+            }
+            vec.push(tok);
             continue;
         }
 
@@ -94,6 +135,8 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             '+' => Some(Tok::Addition),
             '*' => Some(Tok::Multiplication),
             '/' => Some(Tok::Division),
+            '<' => Some(Tok::LessThan),
+            '>' => Some(Tok::GreaterThan),
             _ => None,
         };
 
@@ -271,6 +314,28 @@ mod tests {
             Tok::IntLiteral(2),
             Tok::Division,
             Tok::IntLiteral(9),
+        ];
+        let mut lex = Vec::new();
+        let result = lex_line(line, &mut lex);
+        assert_eq!(result, Ok(()));
+        assert_eq!(lex, expect);
+    }
+
+    #[test]
+    fn test_two_chars() {
+        let line = "test==abc|| 2 &&!= < <= > >=";
+        let expect: Vec<Tok> = vec![
+            Tok::Identifier("test".to_string()),
+            Tok::Equal,
+            Tok::Identifier("abc".to_string()),
+            Tok::Or,
+            Tok::IntLiteral(2),
+            Tok::And,
+            Tok::NotEqual,
+            Tok::LessThan,
+            Tok::LessThanOrEqual,
+            Tok::GreaterThan,
+            Tok::GreaterThanOrEqual,
         ];
         let mut lex = Vec::new();
         let result = lex_line(line, &mut lex);
