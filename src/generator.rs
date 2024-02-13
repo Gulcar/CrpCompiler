@@ -74,6 +74,7 @@ fn write_asm_expression<W: Write>(ast_node: &ASTExpression, f: &mut W) -> io::Re
                     writeln!(f, "\t\tcqo")?;
                     writeln!(f, "\t\tidiv rcx")?;
                 }
+                _ => todo!(),
             }
         }
     }

@@ -1,41 +1,49 @@
 use crate::lexer::Tok;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ASTProgram {
     pub func: ASTFunction,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ASTFunction {
     pub ime: String,
     pub statement: ASTStatement,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ASTStatement {
     pub expr: ASTExpression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ASTExpression {
     Const(i32),
     UnaryOp(UnOp, Box<ASTExpression>),
     BinaryOp(BinOp, Box<ASTExpression>, Box<ASTExpression>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum UnOp {
     Negation,
     BitwiseComplement,
     LogicalNegation,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinOp {
     Addition,
     Subtraction,
     Multiplication,
     Division,
+    LogicalAnd,
+    LogicalOr,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
 }
 
 impl ASTProgram {
@@ -87,6 +95,9 @@ impl ASTExpression {
         let mut depth = 0;
         let mut ok_remove_parens = true;
 
+        // kje bi lahko splital
+        let mut bin_ops: Vec<(usize, BinOp)> = Vec::new();
+
         for (i, tok) in tokens.iter().enumerate().rev() {
             match tok {
                 Tok::OpenParens => {
@@ -96,19 +107,18 @@ impl ASTExpression {
                     }
                 }
                 Tok::CloseParens => depth -= 1,
-                Tok::Addition => if depth == 0 {
-                    return ASTExpression::BinaryOp(
-                        BinOp::Addition,
-                        Box::new(ASTExpression::parse(&tokens[0..i])),
-                        Box::new(ASTExpression::parse(&tokens[(i+1)..]))
-                    );
+
+                Tok::Addition => if depth == 0 && i != 0 {
+                    bin_ops.push((i, BinOp::Addition));
                 },
                 Tok::Negation => if depth == 0 && i != 0 {
-                    return ASTExpression::BinaryOp(
-                        BinOp::Subtraction,
-                        Box::new(ASTExpression::parse(&tokens[0..i])),
-                        Box::new(ASTExpression::parse(&tokens[(i+1)..]))
-                    );
+                    bin_ops.push((i, BinOp::Subtraction));
+                },
+                Tok::Multiplication => if depth == 0 && i != 0 {
+                    bin_ops.push((i, BinOp::Multiplication));
+                },
+                Tok::Division => if depth == 0 && i != 0 {
+                    bin_ops.push((i, BinOp::Division));
                 },
                 _ => {}
             }
@@ -123,26 +133,12 @@ impl ASTExpression {
             return ASTExpression::parse(&tokens[1..(tokens.len() - 1)]);
         }
 
-        for (i, tok) in tokens.iter().enumerate().rev() {
-            match tok {
-                Tok::OpenParens => depth += 1,
-                Tok::CloseParens => depth -= 1,
-                Tok::Multiplication => if depth == 0 {
-                    return ASTExpression::BinaryOp(
-                        BinOp::Multiplication,
-                        Box::new(ASTExpression::parse(&tokens[0..i])),
-                        Box::new(ASTExpression::parse(&tokens[(i+1)..]))
-                    );
-                },
-                Tok::Division => if depth == 0 {
-                    return ASTExpression::BinaryOp(
-                        BinOp::Division,
-                        Box::new(ASTExpression::parse(&tokens[0..i])),
-                        Box::new(ASTExpression::parse(&tokens[(i+1)..]))
-                    );
-                },
-                _ => {}
-            }
+        if let Some((i, op)) = bin_ops.iter().min_by_key(|x| x.1.precedence()) {
+            return ASTExpression::BinaryOp(
+                *op,
+                Box::new(ASTExpression::parse(&tokens[0..(*i)])),
+                Box::new(ASTExpression::parse(&tokens[(*i + 1)..]))
+            );
         }
 
         match tokens[0] {
@@ -160,5 +156,121 @@ impl ASTExpression {
             }
             _ => panic!("parse error ni unary expression {:?}", tokens[0]),
         }
+    }
+}
+
+impl BinOp {
+    fn precedence(&self) -> i32 {
+        match *self {
+            BinOp::Addition => 4,
+            BinOp::Subtraction => 4,
+            BinOp::Multiplication => 5,
+            BinOp::Division => 5,
+            BinOp::LogicalAnd => 1,
+            BinOp::LogicalOr => 0,
+            BinOp::Equal => 2,
+            BinOp::NotEqual => 2,
+            BinOp::LessThan => 3,
+            BinOp::LessThanOrEqual => 3,
+            BinOp::GreaterThan => 3,
+            BinOp::GreaterThanOrEqual => 3,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_main() {
+        let tokens = [
+            Tok::Func,
+            Tok::Identifier("main".to_string()),
+            Tok::OpenParens,
+            Tok::CloseParens,
+            Tok::Int,
+            Tok::OpenBrace,
+            Tok::Return,
+            Tok::IntLiteral(2),
+            Tok::Semicolon,
+            Tok::CloseBrace,
+        ];
+        assert_eq!(
+            ASTProgram::parse(&tokens),
+            ASTProgram {
+                func: ASTFunction {
+                    ime: "main".to_string(),
+                    statement: ASTStatement {
+                        expr: ASTExpression::Const(2),
+                    }
+                }
+            }
+        );
+    }
+
+    #[test]
+    fn test_ops() {
+        let tokens = [
+            Tok::Func,
+            Tok::Identifier("ops".to_string()),
+            Tok::OpenParens,
+            Tok::CloseParens,
+            Tok::Int,
+            Tok::OpenBrace,
+            Tok::Return,
+
+            Tok::BitwiseComplement,
+            Tok::IntLiteral(1),
+            Tok::Negation,
+            Tok::IntLiteral(2),
+            Tok::Addition,
+            Tok::IntLiteral(3),
+            Tok::Multiplication,
+            Tok::IntLiteral(5),
+            Tok::Division,
+            Tok::OpenParens,
+            Tok::IntLiteral(3),
+            Tok::Negation,
+            Tok::IntLiteral(1),
+            Tok::CloseParens,
+
+            Tok::Semicolon,
+            Tok::CloseBrace,
+        ];
+        assert_eq!(
+            ASTProgram::parse(&tokens),
+            ASTProgram {
+                func: ASTFunction {
+                    ime: "ops".to_string(),
+                    statement: ASTStatement {
+                        expr: ASTExpression::BinaryOp(
+                            BinOp::Addition,
+                            Box::new(ASTExpression::BinaryOp(
+                                BinOp::Subtraction,
+                                Box::new(ASTExpression::UnaryOp(
+                                    UnOp::BitwiseComplement,
+                                    Box::new(ASTExpression::Const(1))
+                                )),
+                                Box::new(ASTExpression::Const(2))
+                            )),
+                            Box::new(ASTExpression::BinaryOp(
+                                BinOp::Division,
+                                Box::new(ASTExpression::BinaryOp(
+                                    BinOp::Multiplication,
+                                    Box::new(ASTExpression::Const(3)),
+                                    Box::new(ASTExpression::Const(5)),
+                                )),
+                                Box::new(ASTExpression::BinaryOp(
+                                    BinOp::Subtraction,
+                                    Box::new(ASTExpression::Const(3)),
+                                    Box::new(ASTExpression::Const(1))
+                                ))
+                            ))
+                        )
+                    }
+                }
+            }
+        );
     }
 }
