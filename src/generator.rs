@@ -1,5 +1,5 @@
 use crate::ast::*;
-use std::io::{self, Write};
+use std::{io::{self, Write}, sync::atomic::{AtomicU32, Ordering}};
 
 pub fn write_asm<W: Write>(ast_node: &ASTProgram, f: &mut W) -> io::Result<()> {
     writeln!(f, "\t\tglobal main")?;
@@ -74,10 +74,90 @@ fn write_asm_expression<W: Write>(ast_node: &ASTExpression, f: &mut W) -> io::Re
                     writeln!(f, "\t\tcqo")?;
                     writeln!(f, "\t\tidiv rcx")?;
                 }
-                _ => todo!(),
+                BinOp::Equal => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsete al")?;
+                }
+                BinOp::NotEqual => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetne al")?;
+                }
+                BinOp::LessThan => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetg al")?;
+                }
+                BinOp::LessThanOrEqual => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetge al")?;
+                }
+                BinOp::GreaterThan => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetl al")?;
+                }
+                BinOp::GreaterThanOrEqual => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetle al")?;
+                }
+                BinOp::LogicalOr => {
+                    let label_id = create_label_id();
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tjne crp_or_end_{}", label_id)?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "crp_or_end_{}:", label_id)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetne al")?;
+                }
+                BinOp::LogicalAnd => {
+                    let label_id = create_label_id();
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tje crp_and_end_{}", label_id)?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "crp_and_end_{}:", label_id)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetne al")?;
+                }
             }
         }
     }
     Ok(())
+}
+
+fn create_label_id() -> u32 {
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 

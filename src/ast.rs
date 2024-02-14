@@ -98,15 +98,17 @@ impl ASTExpression {
         // kje bi lahko splital
         let mut bin_ops: Vec<(usize, BinOp)> = Vec::new();
 
-        for (i, tok) in tokens.iter().enumerate().rev() {
+        for (i, tok) in tokens.iter().enumerate() {
             match tok {
                 Tok::OpenParens => {
                     depth += 1;
-                    if depth == 0 && i != 0 {
+                }
+                Tok::CloseParens => {
+                    depth -= 1;
+                    if depth == 0 && i != tokens.len() - 1 {
                         ok_remove_parens = false;
                     }
                 }
-                Tok::CloseParens => depth -= 1,
 
                 Tok::Addition => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Addition)); },
                 Tok::Negation => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Subtraction)); },
@@ -133,7 +135,7 @@ impl ASTExpression {
             return ASTExpression::parse(&tokens[1..(tokens.len() - 1)]);
         }
 
-        if let Some((i, op)) = bin_ops.iter().min_by_key(|x| x.1.precedence()) {
+        if let Some((i, op)) = bin_ops.iter().rev().min_by_key(|x| x.1.precedence()) {
             return ASTExpression::BinaryOp(
                 *op,
                 Box::new(ASTExpression::parse(&tokens[0..(*i)])),
@@ -322,5 +324,4 @@ mod tests {
             }
         );
     }
-
 }

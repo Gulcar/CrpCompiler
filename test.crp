@@ -2,7 +2,7 @@
 # println "Pozdravljen svet %d", 10
 
 func main() int {
-    return (1 || 0 >= 2) && 5;
+    return 0 && 0 || 1;
 }
 
 #func test(int a) int {
