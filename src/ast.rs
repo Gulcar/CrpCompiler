@@ -44,6 +44,12 @@ pub enum BinOp {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+    Modulo,
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    ShiftLeft,
+    ShiftRight,
 }
 
 impl ASTProgram {
@@ -122,6 +128,12 @@ impl ASTExpression {
                 Tok::LessThanOrEqual => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::LessThanOrEqual)); },
                 Tok::GreaterThan => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::GreaterThan)); },
                 Tok::GreaterThanOrEqual => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::GreaterThanOrEqual)); },
+                Tok::Modulo => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::Modulo)); },
+                Tok::BitwiseAnd => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::BitwiseAnd)); },
+                Tok::BitwiseOr => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::BitwiseOr)); },
+                Tok::BitwiseXor => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::BitwiseXor)); },
+                Tok::ShiftLeft => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::ShiftLeft)); },
+                Tok::ShiftRight => if depth == 0 && i != 0 { bin_ops.push((i, BinOp::ShiftRight)); },
                 _ => {}
             }
         }
@@ -164,18 +176,24 @@ impl ASTExpression {
 impl BinOp {
     fn precedence(&self) -> i32 {
         match *self {
-            BinOp::Addition => 4,
-            BinOp::Subtraction => 4,
-            BinOp::Multiplication => 5,
-            BinOp::Division => 5,
-            BinOp::LogicalAnd => 1,
             BinOp::LogicalOr => 0,
-            BinOp::Equal => 2,
-            BinOp::NotEqual => 2,
-            BinOp::LessThan => 3,
-            BinOp::LessThanOrEqual => 3,
-            BinOp::GreaterThan => 3,
-            BinOp::GreaterThanOrEqual => 3,
+            BinOp::LogicalAnd => 1,
+            BinOp::BitwiseOr => 2,
+            BinOp::BitwiseXor => 3,
+            BinOp::BitwiseAnd => 4,
+            BinOp::Equal => 5,
+            BinOp::NotEqual => 5,
+            BinOp::LessThan => 6,
+            BinOp::LessThanOrEqual => 6,
+            BinOp::GreaterThan => 6,
+            BinOp::GreaterThanOrEqual => 6,
+            BinOp::ShiftLeft => 7,
+            BinOp::ShiftRight => 7,
+            BinOp::Addition => 8,
+            BinOp::Subtraction => 8,
+            BinOp::Multiplication => 9,
+            BinOp::Division => 9,
+            BinOp::Modulo => 9,
         }
     }
 }

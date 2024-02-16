@@ -29,6 +29,12 @@ pub enum Tok {
     LessThanOrEqual,   // <=
     GreaterThan,       // >
     GreaterThanOrEqual,// >=
+    Modulo,            // %
+    BitwiseAnd,        // &
+    BitwiseOr,         // |
+    BitwiseXor,        // ^
+    ShiftLeft,         // <<
+    ShiftRight,        // >>
 }
 
 #[derive(Debug, PartialEq)]
@@ -112,6 +118,8 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
         else if check_two_chars('!', '=', c, &mut chars) { dva_char = Some(Tok::NotEqual); }
         else if check_two_chars('<', '=', c, &mut chars) { dva_char = Some(Tok::LessThanOrEqual); }
         else if check_two_chars('>', '=', c, &mut chars) { dva_char = Some(Tok::GreaterThanOrEqual); }
+        else if check_two_chars('<', '<', c, &mut chars) { dva_char = Some(Tok::ShiftLeft); }
+        else if check_two_chars('>', '>', c, &mut chars) { dva_char = Some(Tok::ShiftRight); }
         else { dva_char = None; }
 
         if let Some(tok) = dva_char {
@@ -137,6 +145,10 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             '/' => Some(Tok::Division),
             '<' => Some(Tok::LessThan),
             '>' => Some(Tok::GreaterThan),
+            '%' => Some(Tok::Modulo),
+            '&' => Some(Tok::BitwiseAnd),
+            '|' => Some(Tok::BitwiseOr),
+            '^' => Some(Tok::BitwiseXor),
             _ => None,
         };
 

@@ -150,6 +150,50 @@ fn write_asm_expression<W: Write>(ast_node: &ASTExpression, f: &mut W) -> io::Re
                     writeln!(f, "\t\tmov rax, 0")?;
                     writeln!(f, "\t\tsetne al")?;
                 }
+                BinOp::Modulo => {
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcqo")?;
+                    writeln!(f, "\t\tidiv rcx")?;
+                    writeln!(f, "\t\tmov rax, rdx")?;
+                }
+                BinOp::BitwiseAnd => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tand rax, rcx")?;
+                }
+                BinOp::BitwiseOr => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tor rax, rcx")?;
+                }
+                BinOp::BitwiseXor => {
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\txor rax, rcx")?;
+                }
+                BinOp::ShiftLeft => {
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tshl rax, cl")?;
+                }
+                BinOp::ShiftRight => {
+                    write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tshr rax, cl")?;
+                }
             }
         }
     }
