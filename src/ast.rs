@@ -253,6 +253,9 @@ mod tests {
             Tok::CloseParens,
             Tok::Int,
             Tok::OpenBrace,
+            Tok::Int,
+            Tok::Identifier("var".to_string()),
+            Tok::Semicolon,
             Tok::Return,
             Tok::IntLiteral(2),
             Tok::Semicolon,
@@ -263,9 +266,10 @@ mod tests {
             ASTProgram {
                 func: ASTFunction {
                     ime: "main".to_string(),
-                    statement: ASTStatement {
-                        expr: ASTExpression::Const(2),
-                    }
+                    statements: vec![
+                        ASTStatement::Declaration("var".to_string(), None),
+                        ASTStatement::Return(ASTExpression::Const(2)),
+                    ]
                 }
             }
         );
@@ -305,8 +309,8 @@ mod tests {
             ASTProgram {
                 func: ASTFunction {
                     ime: "ops".to_string(),
-                    statement: ASTStatement {
-                        expr: ASTExpression::BinaryOp(
+                    statements: vec![ASTStatement::Return(
+                        ASTExpression::BinaryOp(
                             BinOp::Addition,
                             Box::new(ASTExpression::BinaryOp(
                                 BinOp::Subtraction,
@@ -330,7 +334,7 @@ mod tests {
                                 ))
                             ))
                         )
-                    }
+                    )]
                 }
             }
         );
@@ -365,8 +369,8 @@ mod tests {
             ASTProgram {
                 func: ASTFunction {
                     ime: "main".to_string(),
-                    statement: ASTStatement {
-                        expr: ASTExpression::BinaryOp(
+                    statements: vec![ASTStatement::Return(
+                        ASTExpression::BinaryOp(
                             BinOp::LogicalAnd,
                             Box::new(ASTExpression::BinaryOp(
                                 BinOp::LogicalOr,
@@ -379,7 +383,7 @@ mod tests {
                             )),
                             Box::new(ASTExpression::Const(5))
                         )
-                    }
+                    )]
                 }
             }
         );

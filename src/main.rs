@@ -1,4 +1,5 @@
 use ast::ASTProgram;
+use generator::ASMGenerator;
 use std::io::{self, Write};
 use std::process::Command;
 use std::{env, fs::File};
@@ -68,8 +69,8 @@ fn main() {
         }
     };
 
-    generator::write_asm(&ast, &mut file).unwrap();
-    generator::write_asm(&ast, &mut io::stdout()).unwrap();
+    ASMGenerator::write_asm(&ast, &mut file).unwrap();
+    ASMGenerator::write_asm(&ast, &mut io::stdout()).unwrap();
 
     file.flush().unwrap();
 
