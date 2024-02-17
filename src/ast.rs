@@ -116,9 +116,49 @@ impl ASTStatement {
                 ASTStatement::Declaration(var_name.clone(), expr)
             }
             Tok::Identifier(ref id) => {
-                assert_eq!(tokens[1], Tok::Assignment);
-                let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
-                ASTStatement::Assignment(id.clone(), expr)
+                match tokens[1] {
+                    Tok::Assignment => {
+                        let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
+                        ASTStatement::Assignment(id.clone(), expr)
+                    }
+                    Tok::AssignAdd => {
+                        let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
+                        let add_expr = ASTExpression::BinaryOp(
+                            BinOp::Addition,
+                            Box::new(ASTExpression::VarRef(id.clone())),
+                            Box::new(expr)
+                        );
+                        ASTStatement::Assignment(id.clone(), add_expr)
+                    }
+                    Tok::AssignSub => {
+                        let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
+                        let sub_expr = ASTExpression::BinaryOp(
+                            BinOp::Subtraction,
+                            Box::new(ASTExpression::VarRef(id.clone())),
+                            Box::new(expr)
+                        );
+                        ASTStatement::Assignment(id.clone(), sub_expr)
+                    }
+                    Tok::AssignMul => {
+                        let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
+                        let mul_expr = ASTExpression::BinaryOp(
+                            BinOp::Multiplication,
+                            Box::new(ASTExpression::VarRef(id.clone())),
+                            Box::new(expr)
+                        );
+                        ASTStatement::Assignment(id.clone(), mul_expr)
+                    }
+                    Tok::AssignDiv => {
+                        let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
+                        let div_expr = ASTExpression::BinaryOp(
+                            BinOp::Division,
+                            Box::new(ASTExpression::VarRef(id.clone())),
+                            Box::new(expr)
+                        );
+                        ASTStatement::Assignment(id.clone(), div_expr)
+                    }
+                    _ => panic!("invalid assignment {:?}", tokens[1])
+                }
             }
             _ => {
                 panic!("not a valid statement {:?}", tokens);

@@ -56,17 +56,13 @@ impl ASMGenerator {
                     self.write_asm_expression(expr, f)?;
                 }
                 writeln!(f, "\t\tpush rax")?;
-                self.variable_map.insert(ime.clone(), self.stack_index);
                 self.stack_index -= 8;
+                self.variable_map.insert(ime.clone(), self.stack_index);
             }
             ASTStatement::Assignment(ime, expr) => {
                 self.write_asm_expression(expr, f)?;
                 let offset = self.variable_map.get(ime).expect("use of undeclared variable");
-                if *offset != 0 {
-                    writeln!(f, "\t\tmov qword [rbp - {}], rax", -offset)?;
-                } else {
-                    writeln!(f, "\t\tmov qword [rbp], rax")?;
-                }
+                writeln!(f, "\t\tmov qword [rbp - {}], rax", -offset)?;
             }
         }
         Ok(())
@@ -77,184 +73,176 @@ impl ASMGenerator {
             ASTExpression::Const(val) => {
                 writeln!(f, "\t\tmov rax, {}", val)?;
             }
-            ASTExpression::UnaryOp(op, expr) => {
-                match op {
-                    UnOp::Negation => {
-                        self.write_asm_expression(expr, f)?;
-                        writeln!(f, "\t\tneg rax")?;
-                    }
-                    UnOp::BitwiseComplement => {
-                        self.write_asm_expression(expr, f)?;
-                        writeln!(f, "\t\tnot rax")?;
-                    }
-                    UnOp::LogicalNegation => {
-                        self.write_asm_expression(expr, f)?;
-                        writeln!(f, "\t\ttest rax, rax")?;
-                        writeln!(f, "\t\tmov rax, 0")?; // mov da ne spremenim test flagov
-                        writeln!(f, "\t\tsete al")?; // set na 1 ce je prejsni test equal
-                    }
+            ASTExpression::UnaryOp(op, expr) => match op {
+                UnOp::Negation => {
+                    self.write_asm_expression(expr, f)?;
+                    writeln!(f, "\t\tneg rax")?;
+                }
+                UnOp::BitwiseComplement => {
+                    self.write_asm_expression(expr, f)?;
+                    writeln!(f, "\t\tnot rax")?;
+                }
+                UnOp::LogicalNegation => {
+                    self.write_asm_expression(expr, f)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tmov rax, 0")?; // mov da ne spremenim test flagov
+                    writeln!(f, "\t\tsete al")?; // set na 1 ce je prejsni test equal
                 }
             }
-            ASTExpression::BinaryOp(op, left, right) => {
-                match op {
-                    BinOp::Addition => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tadd rax, rcx")?;
-                    }
-                    BinOp::Subtraction => {
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tsub rax, rcx")?;
-                    }
-                    BinOp::Multiplication => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\timul rax, rcx")?;
-                    }
-                    BinOp::Division => {
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcqo")?;
-                        writeln!(f, "\t\tidiv rcx")?;
-                    }
-                    BinOp::Equal => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcmp rax, rcx")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsete al")?;
-                    }
-                    BinOp::NotEqual => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcmp rax, rcx")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsetne al")?;
-                    }
-                    BinOp::LessThan => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcmp rax, rcx")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsetg al")?;
-                    }
-                    BinOp::LessThanOrEqual => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcmp rax, rcx")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsetge al")?;
-                    }
-                    BinOp::GreaterThan => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcmp rax, rcx")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsetl al")?;
-                    }
-                    BinOp::GreaterThanOrEqual => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcmp rax, rcx")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsetle al")?;
-                    }
-                    BinOp::LogicalOr => {
-                        let label_id = self.create_label_id();
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\ttest rax, rax")?;
-                        writeln!(f, "\t\tjne crp_or_end_{}", label_id)?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "crp_or_end_{}:", label_id)?;
-                        writeln!(f, "\t\ttest rax, rax")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsetne al")?;
-                    }
-                    BinOp::LogicalAnd => {
-                        let label_id = self.create_label_id();
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\ttest rax, rax")?;
-                        writeln!(f, "\t\tje crp_and_end_{}", label_id)?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "crp_and_end_{}:", label_id)?;
-                        writeln!(f, "\t\ttest rax, rax")?;
-                        writeln!(f, "\t\tmov rax, 0")?;
-                        writeln!(f, "\t\tsetne al")?;
-                    }
-                    BinOp::Modulo => {
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tcqo")?;
-                        writeln!(f, "\t\tidiv rcx")?;
-                        writeln!(f, "\t\tmov rax, rdx")?;
-                    }
-                    BinOp::BitwiseAnd => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tand rax, rcx")?;
-                    }
-                    BinOp::BitwiseOr => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tor rax, rcx")?;
-                    }
-                    BinOp::BitwiseXor => {
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\txor rax, rcx")?;
-                    }
-                    BinOp::ShiftLeft => {
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tshl rax, cl")?;
-                    }
-                    BinOp::ShiftRight => {
-                        self.write_asm_expression(right, f)?;
-                        writeln!(f, "\t\tpush rax")?;
-                        self.write_asm_expression(left, f)?;
-                        writeln!(f, "\t\tpop rcx")?;
-                        writeln!(f, "\t\tshr rax, cl")?;
-                    }
+            ASTExpression::BinaryOp(op, left, right) => match op {
+                BinOp::Addition => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tadd rax, rcx")?;
+                }
+                BinOp::Subtraction => {
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tsub rax, rcx")?;
+                }
+                BinOp::Multiplication => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\timul rax, rcx")?;
+                }
+                BinOp::Division => {
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcqo")?;
+                    writeln!(f, "\t\tidiv rcx")?;
+                }
+                BinOp::Equal => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsete al")?;
+                }
+                BinOp::NotEqual => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetne al")?;
+                }
+                BinOp::LessThan => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetg al")?;
+                }
+                BinOp::LessThanOrEqual => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetge al")?;
+                }
+                BinOp::GreaterThan => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetl al")?;
+                }
+                BinOp::GreaterThanOrEqual => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcmp rax, rcx")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetle al")?;
+                }
+                BinOp::LogicalOr => {
+                    let label_id = self.create_label_id();
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tjne crp_or_end_{}", label_id)?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "crp_or_end_{}:", label_id)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetne al")?;
+                }
+                BinOp::LogicalAnd => {
+                    let label_id = self.create_label_id();
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tje crp_and_end_{}", label_id)?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "crp_and_end_{}:", label_id)?;
+                    writeln!(f, "\t\ttest rax, rax")?;
+                    writeln!(f, "\t\tmov rax, 0")?;
+                    writeln!(f, "\t\tsetne al")?;
+                }
+                BinOp::Modulo => {
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tcqo")?;
+                    writeln!(f, "\t\tidiv rcx")?;
+                    writeln!(f, "\t\tmov rax, rdx")?;
+                }
+                BinOp::BitwiseAnd => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tand rax, rcx")?;
+                }
+                BinOp::BitwiseOr => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tor rax, rcx")?;
+                }
+                BinOp::BitwiseXor => {
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\txor rax, rcx")?;
+                }
+                BinOp::ShiftLeft => {
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tshl rax, cl")?;
+                }
+                BinOp::ShiftRight => {
+                    self.write_asm_expression(right, f)?;
+                    writeln!(f, "\t\tpush rax")?;
+                    self.write_asm_expression(left, f)?;
+                    writeln!(f, "\t\tpop rcx")?;
+                    writeln!(f, "\t\tshr rax, cl")?;
                 }
             }
             ASTExpression::VarRef(ime) => {
                 let offset = self.variable_map.get(ime).expect("use of undeclared variable");
-                if *offset != 0 {
-                    writeln!(f, "\t\tmov rax, qword [rbp - {}]", -offset)?;
-                } else {
-                    writeln!(f, "\t\tmov rax, qword [rbp]")?;
-                }
+                writeln!(f, "\t\tmov rax, qword [rbp - {}]", -offset)?;
             }
         }
         Ok(())

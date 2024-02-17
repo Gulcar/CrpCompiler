@@ -36,6 +36,10 @@ pub enum Tok {
     ShiftLeft,          // <<
     ShiftRight,         // >>
     Assignment,         // =
+    AssignAdd,          // +=
+    AssignSub,          // -=
+    AssignMul,          // *=
+    AssignDiv,          // /=
 }
 
 #[derive(Debug, PartialEq)]
@@ -121,6 +125,10 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
         else if check_two_chars('>', '=', c, &mut chars) { dva_char = Some(Tok::GreaterThanOrEqual); }
         else if check_two_chars('<', '<', c, &mut chars) { dva_char = Some(Tok::ShiftLeft); }
         else if check_two_chars('>', '>', c, &mut chars) { dva_char = Some(Tok::ShiftRight); }
+        else if check_two_chars('+', '=', c, &mut chars) { dva_char = Some(Tok::AssignAdd); }
+        else if check_two_chars('-', '=', c, &mut chars) { dva_char = Some(Tok::AssignSub); }
+        else if check_two_chars('*', '=', c, &mut chars) { dva_char = Some(Tok::AssignMul); }
+        else if check_two_chars('/', '=', c, &mut chars) { dva_char = Some(Tok::AssignDiv); }
         else { dva_char = None; }
 
         if let Some(tok) = dva_char {
