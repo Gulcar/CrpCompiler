@@ -8,19 +8,29 @@ pub struct ASTProgram {
 #[derive(Debug, PartialEq)]
 pub struct ASTFunction {
     pub ime: String,
-    pub statement: ASTStatement,
+    pub statements: Vec<ASTStatement>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ASTStatement {
-    pub expr: ASTExpression,
+pub enum ASTStatement {
+    // return <expr>;
+    Return(ASTExpression),
+    // ime spremenljivke in opcijski initializer vrednost
+    Declaration(String, Option<ASTExpression>),
+    // ime spremenljivke in nova vrednost
+    Assignment(String, ASTExpression),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum ASTExpression {
+    // samo stevilka
     Const(i32),
+    // operator in desna stran
     UnaryOp(UnOp, Box<ASTExpression>),
+    // operator, leva in desna stran
     BinaryOp(BinOp, Box<ASTExpression>, Box<ASTExpression>),
+    // ime spremenljivke
+    VarRef(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -71,20 +81,51 @@ impl ASTFunction {
         assert_eq!(tokens[4], Tok::Int);
         assert_eq!(tokens[5], Tok::OpenBrace);
 
-        let body = ASTStatement::parse(&tokens[6..(tokens.len() - 1)]);
+        let mut statements = Vec::new();
+        let body_tokens = &tokens[6..(tokens.len() - 1)];
+        for statement_tokens in body_tokens.split_inclusive(|x| *x == Tok::Semicolon) {
+            statements.push(ASTStatement::parse(statement_tokens));
+        }
 
         assert_eq!(*tokens.last().unwrap(), Tok::CloseBrace);
 
-        Self { ime, statement: body }
+        Self { ime, statements }
     }
 }
 
 impl ASTStatement {
     fn parse(tokens: &[Tok]) -> Self {
-        assert_eq!(tokens[0], Tok::Return);
-        let expr = ASTExpression::parse(&tokens[1..(tokens.len() - 1)]);
         assert_eq!(*tokens.last().unwrap(), Tok::Semicolon);
-        Self { expr }
+
+        match tokens[0] {
+            Tok::Return => {
+                let expr = ASTExpression::parse(&tokens[1..(tokens.len() - 1)]);
+                ASTStatement::Return(expr)
+            }
+            Tok::Int => {
+                let var_name = match tokens[1] {
+                    Tok::Identifier(ref name) => name,
+                    _ => panic!("not a variable name {:?}", tokens[1]),
+                };
+                let expr = if tokens[2] == Tok::Assignment {
+                    Some(ASTExpression::parse(&tokens[3..(tokens.len() - 1)]))
+                } else {
+                    assert_eq!(tokens.len(), 3);
+                    None
+                };
+                ASTStatement::Declaration(var_name.clone(), expr)
+            }
+            Tok::Identifier(ref id) => {
+                assert_eq!(tokens[1], Tok::Assignment);
+                let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
+                ASTStatement::Assignment(id.clone(), expr)
+            }
+            _ => {
+                panic!("not a valid statement {:?}", tokens);
+                //let expr = ASTExpression::parse(&tokens[0..(tokens.len() - 1)]);
+                //ASTStatement::Expr(expr)
+            }
+        }
     }
 }
 
@@ -94,7 +135,8 @@ impl ASTExpression {
         if tokens.len() == 1 {
             match tokens[0] {
                 Tok::IntLiteral(val) => { return ASTExpression::Const(val); }
-                _ => panic!("should be an int literal {:?}", tokens[0]),
+                Tok::Identifier(ref id) => { return ASTExpression::VarRef(id.clone()); }
+                _ => panic!("should be an int literal or a variable reference {:?}", tokens[0]),
             }
         }
 

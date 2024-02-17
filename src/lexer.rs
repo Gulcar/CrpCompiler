@@ -10,31 +10,32 @@ pub enum Tok {
     Func,
     Int,
     Return,
-    OpenParens,        // (
-    CloseParens,       // )
-    OpenBrace,         // {
-    CloseBrace,        // }
-    Semicolon,         // ;
-    Negation,          // -
-    BitwiseComplement, // ~
-    LogicalNegation,   // !
-    Addition,          // +
-    Multiplication,    // *
-    Division,          // /
-    And,               // &&
-    Or,                // ||
-    Equal,             // ==
-    NotEqual,          // !=
-    LessThan,          // <
-    LessThanOrEqual,   // <=
-    GreaterThan,       // >
-    GreaterThanOrEqual,// >=
-    Modulo,            // %
-    BitwiseAnd,        // &
-    BitwiseOr,         // |
-    BitwiseXor,        // ^
-    ShiftLeft,         // <<
-    ShiftRight,        // >>
+    OpenParens,         // (
+    CloseParens,        // )
+    OpenBrace,          // {
+    CloseBrace,         // }
+    Semicolon,          // ;
+    Negation,           // -
+    BitwiseComplement,  // ~
+    LogicalNegation,    // !
+    Addition,           // +
+    Multiplication,     // *
+    Division,           // /
+    And,                // &&
+    Or,                 // ||
+    Equal,              // ==
+    NotEqual,           // !=
+    LessThan,           // <
+    LessThanOrEqual,    // <=
+    GreaterThan,        // >
+    GreaterThanOrEqual, // >=
+    Modulo,             // %
+    BitwiseAnd,         // &
+    BitwiseOr,          // |
+    BitwiseXor,         // ^
+    ShiftLeft,          // <<
+    ShiftRight,         // >>
+    Assignment,         // =
 }
 
 #[derive(Debug, PartialEq)]
@@ -149,6 +150,7 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             '&' => Some(Tok::BitwiseAnd),
             '|' => Some(Tok::BitwiseOr),
             '^' => Some(Tok::BitwiseXor),
+            '=' => Some(Tok::Assignment),
             _ => None,
         };
 
