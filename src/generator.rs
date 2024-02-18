@@ -64,7 +64,25 @@ impl ASMGenerator {
                 let offset = self.variable_map.get(ime).expect("use of undeclared variable");
                 writeln!(f, "\t\tmov qword [rbp - {}], rax", -offset)?;
             }
-            _ => todo!()
+            ASTStatement::IfElse(cond, if_body, else_body) => {
+                let label_id = self.create_label_id();
+
+                self.write_asm_expression(cond, f)?;
+                writeln!(f, "\t\ttest rax, rax")?;
+                writeln!(f, "\t\tje crp_else_{}", label_id)?;
+
+                for statement in if_body {
+                    self.write_asm_statement(statement, f)?;
+                }
+                writeln!(f, "\t\tjmp crp_end_else_{}", label_id)?;
+
+                writeln!(f, "crp_else_{}:", label_id)?;
+                for statement in else_body {
+                    self.write_asm_statement(statement, f)?;
+                }
+
+                writeln!(f, "crp_end_else_{}:", label_id)?;
+            }
         }
         Ok(())
     }
