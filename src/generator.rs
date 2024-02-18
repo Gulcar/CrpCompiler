@@ -4,6 +4,7 @@ use std::{collections::HashMap, io::{self, Write}};
 pub struct ASMGenerator {
     stack_index: i32,
     next_label_id: u32,
+    loop_stack: Vec<(String, String)>,
 }
 
 impl ASMGenerator {
@@ -11,6 +12,7 @@ impl ASMGenerator {
         Self {
             stack_index: 0,
             next_label_id: 0,
+            loop_stack: Vec::new(),
         }
     }
 
@@ -95,7 +97,91 @@ impl ASMGenerator {
                     writeln!(f, "crp_end_else_{}:", label_id)?;
                 }
             }
-            _ => todo!(),
+            ASTStatement::DoWhileLoop(statements, cond) => {
+                let label_id = self.create_label_id();
+                let start_label = format!("crp_do_while_start_{}", label_id);
+                let cond_label = format!("crp_do_while_cond_{}", label_id);
+                let end_label = format!("crp_do_while_end_{}", label_id);
+
+                writeln!(f, "{}:", start_label)?;
+                self.loop_stack.push((cond_label.clone(), end_label.clone()));
+
+                let mut var_scope = var_map.clone();
+                for statement in statements {
+                    self.write_asm_statement(statement, &mut var_scope, f)?;
+                }
+
+                writeln!(f, "{}:", cond_label)?;
+                self.write_asm_expression(cond, &mut var_scope, f)?;
+                writeln!(f, "\t\ttest rax, rax")?;
+                writeln!(f, "\t\tjne {}", start_label)?;
+
+                writeln!(f, "{}:", end_label)?;
+                self.loop_stack.pop();
+            }
+            ASTStatement::WhileLoop(cond, statements) => {
+                let label_id = self.create_label_id();
+                let start_label = format!("crp_while_start_{}", label_id);
+                let end_label = format!("crp_while_end_{}", label_id);
+
+                writeln!(f, "{}:", start_label)?;
+                self.loop_stack.push((start_label.clone(), end_label.clone()));
+
+                self.write_asm_expression(cond, var_map, f)?;
+                writeln!(f, "\t\ttest rax, rax")?;
+                writeln!(f, "\t\tje {}", end_label)?;
+
+                let mut var_scope = var_map.clone();
+                for statement in statements {
+                    self.write_asm_statement(statement, &mut var_scope, f)?;
+                }
+                writeln!(f, "\t\tjmp {}", start_label)?;
+
+                writeln!(f, "{}:", end_label)?;
+                self.loop_stack.pop();
+            }
+            ASTStatement::ForLoop(init, cond, step, body) => {
+                let label_id = self.create_label_id();
+                let start_label = format!("crp_for_start_{}", label_id);
+                let step_label = format!("crp_for_step_{}", label_id);
+                let end_label = format!("crp_for_end_{}", label_id);
+
+                let mut var_scope = var_map.clone();
+                self.write_asm_statement(init, &mut var_scope, f)?;
+
+                writeln!(f, "{}:", start_label)?;
+                self.loop_stack.push((step_label.clone(), end_label.clone()));
+
+                self.write_asm_expression(cond, &mut var_scope, f)?;
+                writeln!(f, "\t\ttest rax, rax")?;
+                writeln!(f, "\t\tje {}", end_label)?;
+
+                for statement in body {
+                    self.write_asm_statement(statement, &mut var_scope, f)?;
+                }
+                writeln!(f, "{}:", step_label)?;
+                self.write_asm_statement(step, &mut var_scope, f)?;
+                writeln!(f, "\t\tjmp {}", start_label)?;
+
+                writeln!(f, "{}:", end_label)?;
+                self.loop_stack.pop();
+            }
+            ASTStatement::Continue => {
+                if let Some((start_label, _end_label)) = self.loop_stack.last() {
+                    writeln!(f, "\t\tjmp {}", start_label)?;
+                }
+                else {
+                    panic!("cannot call continue outside a loop!");
+                }
+            }
+            ASTStatement::Break => {
+                if let Some((_start_label, end_label)) = self.loop_stack.last() {
+                    writeln!(f, "\t\tjmp {}", end_label)?;
+                }
+                else {
+                    panic!("cannot call break outside a loop!");
+                }
+            }
         }
         Ok(())
     }

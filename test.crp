@@ -4,21 +4,20 @@
 func main() int {
     int a = 0;
 
-    while a < 10 {
-        a += 1;
-        if a % 2 == 0 {
-            continue;
-        }
-    }
+    #while a < 0 {
+    #    a += 3;
+    #}
 
-    do {
-        a -= 1;
-    } while a > 0;
+    #do {
+    #    a += 1;
+    #} while a < 0;
 
     for i in 0..10 {
-        a += 1;
+        if i % 2 == 1 {
+            continue;
+        }
+        a += 4;
     }
-    
 
     return a;
 }
