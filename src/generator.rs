@@ -95,6 +95,7 @@ impl ASMGenerator {
                     writeln!(f, "crp_end_else_{}:", label_id)?;
                 }
             }
+            _ => todo!(),
         }
         Ok(())
     }

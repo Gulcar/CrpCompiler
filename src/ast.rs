@@ -21,6 +21,14 @@ pub enum ASTStatement {
     Assignment(String, ASTExpression),
     // pogoj, if body, else body (mogoce prazen)
     IfElse(ASTExpression, Vec<ASTStatement>, Vec<ASTStatement>),
+    // zacetek, pogoj, korak in body
+    ForLoop(Box<ASTStatement>, ASTExpression, Box<ASTStatement>, Vec<ASTStatement>),
+    // pogoj in body
+    WhileLoop(ASTExpression, Vec<ASTStatement>),
+    // body in pogoj
+    DoWhileLoop(Vec<ASTStatement>, ASTExpression),
+    Continue,
+    Break,
 }
 
 #[derive(Debug, PartialEq)]
@@ -102,7 +110,8 @@ impl ASTStatement {
         let mut iter = tokens.iter().enumerate().peekable();
         while let Some((i, tok)) = iter.next() {
             if (*tok == Tok::Semicolon && depth == 0)
-                || (*tok == Tok::CloseBrace && depth == 1 && iter.peek().map(|x| x.1) != Some(&Tok::Else))
+                || (*tok == Tok::CloseBrace && depth == 1 && iter.peek().map(|x| x.1) != Some(&Tok::Else) && tokens[start_tok] == Tok::If)
+                || (*tok == Tok::CloseBrace && depth == 1 && (tokens[start_tok] == Tok::While || tokens[start_tok] == Tok::For))
                 || (i == tokens.len() - 1)
             {
                 statements.push(ASTStatement::parse(&tokens[start_tok..=i]));
@@ -222,6 +231,61 @@ impl ASTStatement {
                     Vec::new()
                 };
                 ASTStatement::IfElse(cond, body, else_body)
+            }
+            Tok::While => {
+                assert_eq!(*tokens.last().unwrap(), Tok::CloseBrace);
+                let body_start = tokens.iter().position(|t| *t == Tok::OpenBrace).unwrap();
+                let cond = ASTExpression::parse(&tokens[1..body_start]);
+                let statements = ASTStatement::parse_multiple(&tokens[(body_start+1)..(tokens.len()-1)]);
+                ASTStatement::WhileLoop(cond, statements)
+            }
+            Tok::Do => {
+                assert_eq!(tokens[1], Tok::OpenBrace);
+                assert_eq!(*tokens.last().unwrap(), Tok::Semicolon);
+                let body_end = tokens.iter().enumerate().rev().find(|(_, t)| **t == Tok::CloseBrace).map(|(p, _)| p).unwrap();
+                assert_eq!(tokens[body_end + 1], Tok::While);
+                let cond = ASTExpression::parse(&tokens[(body_end + 2)..(tokens.len() - 1)]);
+                let statements = ASTStatement::parse_multiple(&tokens[2..body_end]);
+                ASTStatement::DoWhileLoop(statements, cond)
+            }
+            Tok::For => {
+                let iter_var_name = match tokens[1] {
+                    Tok::Identifier(ref name) => name.clone(),
+                    _ => panic!("should be a variable name in for loop {:?}", tokens),
+                };
+                assert_eq!(tokens[2], Tok::In);
+                let start = ASTExpression::parse(&tokens[3..=3]);
+                assert_eq!(tokens[4], Tok::DotDot);
+                let end = ASTExpression::parse(&tokens[5..=5]);
+                assert_eq!(tokens[6], Tok::OpenBrace);
+                assert_eq!(*tokens.last().unwrap(), Tok::CloseBrace);
+
+                let init = ASTStatement::Declaration(iter_var_name.clone(), Some(start));
+                let cond = ASTExpression::BinaryOp(
+                    BinOp::LessThan,
+                    Box::new(ASTExpression::VarRef(iter_var_name.clone())),
+                    Box::new(end)
+                );
+                let step = ASTStatement::Assignment(
+                    iter_var_name.clone(),
+                    ASTExpression::BinaryOp(
+                        BinOp::Addition,
+                        Box::new(ASTExpression::VarRef(iter_var_name)),
+                        Box::new(ASTExpression::Const(1))
+                    )
+                );
+                let body = ASTStatement::parse_multiple(&tokens[7..(tokens.len()-1)]);
+                ASTStatement::ForLoop(Box::new(init), cond, Box::new(step), body)
+            }
+            Tok::Break => {
+                assert_eq!(tokens.len(), 2);
+                assert_eq!(tokens[1], Tok::Semicolon);
+                ASTStatement::Break
+            }
+            Tok::Continue => {
+                assert_eq!(tokens.len(), 2);
+                assert_eq!(tokens[1], Tok::Semicolon);
+                ASTStatement::Continue
             }
             _ => {
                 panic!("not a valid statement {:?}", tokens);

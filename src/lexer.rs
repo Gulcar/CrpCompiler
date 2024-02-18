@@ -12,6 +12,13 @@ pub enum Tok {
     Return,
     If,
     Else,
+    For,
+    In,
+    DotDot,
+    While,
+    Do,
+    Break,
+    Continue,
     OpenParens,         // (
     CloseParens,        // )
     OpenBrace,          // {
@@ -131,6 +138,7 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
         else if check_two_chars('-', '=', c, &mut chars) { dva_char = Some(Tok::AssignSub); }
         else if check_two_chars('*', '=', c, &mut chars) { dva_char = Some(Tok::AssignMul); }
         else if check_two_chars('/', '=', c, &mut chars) { dva_char = Some(Tok::AssignDiv); }
+        else if check_two_chars('.', '.', c, &mut chars) { dva_char = Some(Tok::DotDot); }
         else { dva_char = None; }
 
         if let Some(tok) = dva_char {
@@ -190,6 +198,12 @@ fn word_to_tok(word: String) -> Result<Tok, LexError> {
         "return" => return Ok(Tok::Return),
         "if" => return Ok(Tok::If),
         "else" => return Ok(Tok::Else),
+        "for" => return Ok(Tok::For),
+        "in" => return Ok(Tok::In),
+        "while" => return Ok(Tok::While),
+        "do" => return Ok(Tok::Do),
+        "break" => return Ok(Tok::Break),
+        "continue" => return Ok(Tok::Continue),
         _ => {}
     }
 
