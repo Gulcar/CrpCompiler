@@ -4,19 +4,11 @@
 func main() int {
     int a = 0;
 
-    if a > -1 {
-        if 0 && 1 {
-            a = 0;
-        }
-        else if a < 3 {
-            a = 2;
-        }
-        else {
-            a = 3;
-        }
+    if a != 0 {
+        a = 8;
     }
     else {
-        a = -1;
+        a = 9;
     }
 
     return a;
