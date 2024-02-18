@@ -19,6 +19,8 @@ pub enum ASTStatement {
     Declaration(String, Option<ASTExpression>),
     // ime spremenljivke in nova vrednost
     Assignment(String, ASTExpression),
+    // pogoj, if body, else body (mogoce prazen)
+    IfElse(ASTExpression, Vec<ASTStatement>, Vec<ASTStatement>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -81,11 +83,8 @@ impl ASTFunction {
         assert_eq!(tokens[4], Tok::Int);
         assert_eq!(tokens[5], Tok::OpenBrace);
 
-        let mut statements = Vec::new();
         let body_tokens = &tokens[6..(tokens.len() - 1)];
-        for statement_tokens in body_tokens.split_inclusive(|x| *x == Tok::Semicolon) {
-            statements.push(ASTStatement::parse(statement_tokens));
-        }
+        let statements = ASTStatement::parse_multiple(body_tokens);
 
         assert_eq!(*tokens.last().unwrap(), Tok::CloseBrace);
 
@@ -94,15 +93,37 @@ impl ASTFunction {
 }
 
 impl ASTStatement {
-    fn parse(tokens: &[Tok]) -> Self {
-        assert_eq!(*tokens.last().unwrap(), Tok::Semicolon);
+    fn parse_multiple(tokens: &[Tok]) -> Vec<ASTStatement> {
+        let mut statements = Vec::new();
 
+        let mut start_tok = 0;
+        let mut depth = 0;
+
+        let mut iter = tokens.iter().enumerate().peekable();
+        while let Some((i, tok)) = iter.next() {
+            if (*tok == Tok::Semicolon && depth == 0)
+                || (*tok == Tok::CloseBrace && depth == 1 && iter.peek().map(|x| x.1) != Some(&Tok::Else))
+                || (i == tokens.len() - 1)
+            {
+                statements.push(ASTStatement::parse(&tokens[start_tok..=i]));
+                start_tok = i + 1;
+            }
+            if *tok == Tok::OpenBrace { depth += 1; }
+            else if *tok == Tok::CloseBrace { depth -= 1; }
+        }
+
+        statements
+    }
+
+    fn parse(tokens: &[Tok]) -> Self {
         match tokens[0] {
             Tok::Return => {
+                assert_eq!(*tokens.last().unwrap(), Tok::Semicolon);
                 let expr = ASTExpression::parse(&tokens[1..(tokens.len() - 1)]);
                 ASTStatement::Return(expr)
             }
             Tok::Int => {
+                assert_eq!(*tokens.last().unwrap(), Tok::Semicolon);
                 let var_name = match tokens[1] {
                     Tok::Identifier(ref name) => name,
                     _ => panic!("not a variable name {:?}", tokens[1]),
@@ -116,6 +137,7 @@ impl ASTStatement {
                 ASTStatement::Declaration(var_name.clone(), expr)
             }
             Tok::Identifier(ref id) => {
+                assert_eq!(*tokens.last().unwrap(), Tok::Semicolon);
                 match tokens[1] {
                     Tok::Assignment => {
                         let expr = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
@@ -159,6 +181,47 @@ impl ASTStatement {
                     }
                     _ => panic!("invalid assignment {:?}", tokens[1])
                 }
+            }
+            Tok::If => {
+                assert_eq!(*tokens.last().unwrap(), Tok::CloseBrace);
+
+                let mut body_start = None;
+                let mut body_end = None;
+                let mut depth = 0;
+
+                for (i, tok) in tokens.iter().enumerate() {
+                    match *tok {
+                        Tok::OpenBrace => {
+                            depth += 1;
+                            if body_start == None && depth == 1 {
+                                body_start = Some(i);
+                            }
+                        }
+                        Tok::CloseBrace => {
+                            depth -= 1;
+                            if body_end == None && depth == 0 {
+                                body_end = Some(i);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                let body_start = body_start.unwrap();
+                let body_end = body_end.unwrap();
+
+                let cond = ASTExpression::parse(&tokens[1..body_start]);
+                let body = ASTStatement::parse_multiple(&tokens[(body_start+1)..body_end]);
+                let else_body = if tokens.get(body_end + 1) == Some(&Tok::Else) {
+                    let (else_start, else_end) = if tokens[body_end + 2] == Tok::OpenBrace {
+                        (body_end + 3, tokens.len() - 1)
+                    } else {
+                        (body_end + 2, tokens.len())
+                    };
+                    ASTStatement::parse_multiple(&tokens[else_start..else_end])
+                } else {
+                    Vec::new()
+                };
+                ASTStatement::IfElse(cond, body, else_body)
             }
             _ => {
                 panic!("not a valid statement {:?}", tokens);

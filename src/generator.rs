@@ -64,6 +64,7 @@ impl ASMGenerator {
                 let offset = self.variable_map.get(ime).expect("use of undeclared variable");
                 writeln!(f, "\t\tmov qword [rbp - {}], rax", -offset)?;
             }
+            _ => todo!()
         }
         Ok(())
     }

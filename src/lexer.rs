@@ -10,6 +10,8 @@ pub enum Tok {
     Func,
     Int,
     Return,
+    If,
+    Else,
     OpenParens,         // (
     CloseParens,        // )
     OpenBrace,          // {
@@ -186,6 +188,8 @@ fn word_to_tok(word: String) -> Result<Tok, LexError> {
         "func" => return Ok(Tok::Func),
         "int" => return Ok(Tok::Int),
         "return" => return Ok(Tok::Return),
+        "if" => return Ok(Tok::If),
+        "else" => return Ok(Tok::Else),
         _ => {}
     }
 
