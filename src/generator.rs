@@ -20,7 +20,9 @@ impl ASMGenerator {
         let mut generator = ASMGenerator::new();
         writeln!(f, "\t\tglobal main")?;
         writeln!(f, "\t\tsection .text")?;
-        generator.write_asm_function(&ast_node.func, f)?;
+        for func in ast_node.functions.iter() {
+            generator.write_asm_function(func, f)?;
+        }
         Ok(())
     }
 
@@ -182,6 +184,7 @@ impl ASMGenerator {
                     panic!("cannot call break outside a loop!");
                 }
             }
+            _ => todo!(),
         }
         Ok(())
     }
@@ -368,6 +371,7 @@ impl ASMGenerator {
                 let offset = var_map.get(ime).expect("use of undeclared variable");
                 writeln!(f, "\t\tmov rax, qword [rbp - {}]", -offset)?;
             }
+            _ => todo!(),
         }
         Ok(())
     }

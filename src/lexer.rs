@@ -49,6 +49,7 @@ pub enum Tok {
     AssignSub,          // -=
     AssignMul,          // *=
     AssignDiv,          // /=
+    Comma,              // ,
 }
 
 #[derive(Debug, PartialEq)]
@@ -169,6 +170,7 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             '|' => Some(Tok::BitwiseOr),
             '^' => Some(Tok::BitwiseXor),
             '=' => Some(Tok::Assignment),
+            ',' => Some(Tok::Comma),
             _ => None,
         };
 

@@ -2,12 +2,13 @@ use crate::lexer::Tok;
 
 #[derive(Debug, PartialEq)]
 pub struct ASTProgram {
-    pub func: ASTFunction,
+    pub functions: Vec<ASTFunction>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ASTFunction {
     pub ime: String,
+    pub params: Vec<String>,
     pub statements: Vec<ASTStatement>,
 }
 
@@ -29,6 +30,8 @@ pub enum ASTStatement {
     DoWhileLoop(Vec<ASTStatement>, ASTExpression),
     Continue,
     Break,
+    // klic funkcije ASTExpression::FunctionCall
+    FunctionCall(ASTExpression),
 }
 
 #[derive(Debug, PartialEq)]
@@ -41,6 +44,8 @@ pub enum ASTExpression {
     BinaryOp(BinOp, Box<ASTExpression>, Box<ASTExpression>),
     // ime spremenljivke
     VarRef(String),
+    // ime funkcije in seznam argumentov
+    FunctionCall(String, Vec<ASTExpression>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -74,29 +79,59 @@ pub enum BinOp {
 
 impl ASTProgram {
     pub fn parse(tokens: &[Tok]) -> Self {
-        let func = ASTFunction::parse(tokens);
-        Self { func }
+        let mut start_token = 0;
+        let mut functions = Vec::new();
+
+        for (i, tok) in tokens.iter().enumerate().skip(1) {
+            if *tok == Tok::Func {
+                functions.push(ASTFunction::parse(&tokens[start_token..i]));
+                start_token = i;
+            }
+            if i == tokens.len() - 1 {
+                functions.push(ASTFunction::parse(&tokens[start_token..]));
+            }
+        }
+
+        Self { functions }
     }
 }
 
 impl ASTFunction {
     fn parse(tokens: &[Tok]) -> Self {
         assert_eq!(tokens[0], Tok::Func);
-        let ime = match tokens[1].clone() {
-            Tok::Identifier(id) => id,
-            _ => panic!("not an identifier"),
+        let ime = match tokens[1] {
+            Tok::Identifier(ref id) => id.clone(),
+            _ => panic!("not an identifier function name {:?}", tokens),
         };
         assert_eq!(tokens[2], Tok::OpenParens);
-        assert_eq!(tokens[3], Tok::CloseParens);
-        assert_eq!(tokens[4], Tok::Int);
-        assert_eq!(tokens[5], Tok::OpenBrace);
 
-        let body_tokens = &tokens[6..(tokens.len() - 1)];
+        let mut params = Vec::new();
+
+        let mut i = 3;
+        while tokens[i] == Tok::Int {
+            let param = match tokens[i + 1] {
+                Tok::Identifier(ref param) => param.clone(),
+                _ => panic!("not an indentifier param {:?}", tokens),
+            };
+            params.push(param);
+            if tokens[i + 2] == Tok::Comma {
+                i += 3;
+            } else {
+                i += 2;
+                break;
+            }
+        }
+
+        assert_eq!(tokens[i], Tok::CloseParens);
+        assert_eq!(tokens[i + 1], Tok::Int);
+        assert_eq!(tokens[i + 2], Tok::OpenBrace);
+
+        let body_tokens = &tokens[(i+3)..(tokens.len() - 1)];
         let statements = ASTStatement::parse_multiple(body_tokens);
 
         assert_eq!(*tokens.last().unwrap(), Tok::CloseBrace);
 
-        Self { ime, statements }
+        Self { ime, statements, params }
     }
 }
 
@@ -188,7 +223,15 @@ impl ASTStatement {
                         );
                         ASTStatement::Assignment(id.clone(), div_expr)
                     }
-                    _ => panic!("invalid assignment {:?}", tokens[1])
+                    Tok::OpenParens => {
+                        let call_expr = ASTExpression::parse(&tokens[0..(tokens.len() - 1)]);
+                        match call_expr {
+                            ASTExpression::FunctionCall(_, _) => {},
+                            _ => panic!("not a function call {:?}", tokens),
+                        }
+                        ASTStatement::FunctionCall(call_expr)
+                    }
+                    _ => panic!("invalid assignment or function call {:?}", tokens[1])
                 }
             }
             Tok::If => {
@@ -377,7 +420,17 @@ impl ASTExpression {
                 let expr = ASTExpression::parse(&tokens[1..]);
                 ASTExpression::UnaryOp(UnOp::LogicalNegation, Box::new(expr))
             }
-            _ => panic!("parse error ni unary expression {:?}", tokens[0]),
+            Tok::Identifier(ref func) => {
+                assert_eq!(tokens[1], Tok::OpenParens);
+                assert_eq!(*tokens.last().unwrap(), Tok::CloseParens);
+                let mut args = Vec::new();
+                let arg_tokens = &tokens[2..(tokens.len() - 1)];
+                for a in arg_tokens.split(|t| *t == Tok::Comma) {
+                    args.push(ASTExpression::parse(a));
+                }
+                ASTExpression::FunctionCall(func.clone(), args)
+            }
+            _ => panic!("parse error ni unary expression ali function call {:?}", tokens[0]),
         }
     }
 }
