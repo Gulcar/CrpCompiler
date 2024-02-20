@@ -426,7 +426,9 @@ impl ASTExpression {
                 let mut args = Vec::new();
                 let arg_tokens = &tokens[2..(tokens.len() - 1)];
                 for a in arg_tokens.split(|t| *t == Tok::Comma) {
-                    args.push(ASTExpression::parse(a));
+                    if a.len() != 0 {
+                        args.push(ASTExpression::parse(a));
+                    }
                 }
                 ASTExpression::FunctionCall(func.clone(), args)
             }

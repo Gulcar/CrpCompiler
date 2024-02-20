@@ -1,24 +1,29 @@
-use crate::ast::*;
+use crate::{ast::*, validation::FunctionMap};
 use std::{collections::HashMap, io::{self, Write}};
 
 pub struct ASMGenerator {
     stack_index: i32,
     next_label_id: u32,
     loop_stack: Vec<(String, String)>,
+    func_map: FunctionMap,
 }
 
+const ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9" ];
+
 impl ASMGenerator {
-    fn new() -> Self {
+    fn new(func_map: FunctionMap) -> Self {
         Self {
             stack_index: 0,
             next_label_id: 0,
             loop_stack: Vec::new(),
+            func_map,
         }
     }
 
-    pub fn write_asm<W: Write>(ast_node: &ASTProgram, f: &mut W) -> io::Result<()> {
-        let mut generator = ASMGenerator::new();
+    pub fn write_asm<W: Write>(ast_node: &ASTProgram, func_map: FunctionMap, f: &mut W) -> io::Result<()> {
+        let mut generator = ASMGenerator::new(func_map);
         writeln!(f, "\t\tglobal main")?;
+        writeln!(f, "\t\textern putchar")?;
         writeln!(f, "\t\tsection .text")?;
         for func in ast_node.functions.iter() {
             generator.write_asm_function(func, f)?;
@@ -36,8 +41,21 @@ impl ASMGenerator {
 
         let mut var_map = HashMap::new();
 
+        for (i, arg) in ast_node.params.iter().enumerate() {
+            writeln!(f, "\t\tpush {}", ARG_REGS[i])?;
+            self.stack_index -= 8;
+            var_map.insert(arg.clone(), self.stack_index);
+        }
+
         for statement in &ast_node.statements {
             self.write_asm_statement(statement, &mut var_map, f)?;
+        }
+
+        if ast_node.statements.iter().find(|s| matches!(**s, ASTStatement::Return(..))).is_none() {
+            // function epilogue
+            writeln!(f, "\t\tmov rsp, rbp")?;
+            writeln!(f, "\t\tpop rbp")?;
+            writeln!(f, "\t\tret")?;
         }
 
         Ok(())
@@ -72,7 +90,11 @@ impl ASMGenerator {
             ASTStatement::Assignment(ime, expr) => {
                 self.write_asm_expression(expr, var_map, f)?;
                 let offset = var_map.get(ime).expect("use of undeclared variable");
-                writeln!(f, "\t\tmov qword [rbp - {}], rax", -offset)?;
+                if *offset < 0 {
+                    writeln!(f, "\t\tmov qword [rbp - {}], rax", -offset)?;
+                } else {
+                    writeln!(f, "\t\tmov qword [rbp + {}], rax", offset)?;
+                }
             }
             ASTStatement::IfElse(cond, if_body, else_body) => {
                 let label_id = self.create_label_id();
@@ -184,7 +206,9 @@ impl ASMGenerator {
                     panic!("cannot call break outside a loop!");
                 }
             }
-            _ => todo!(),
+            ASTStatement::FunctionCall(call_expr) => {
+                self.write_asm_expression(call_expr, var_map, f)?;
+            }
         }
         Ok(())
     }
@@ -220,37 +244,47 @@ impl ASMGenerator {
                 BinOp::Addition => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tadd rax, rcx")?;
                 }
                 BinOp::Subtraction => {
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tsub rax, rcx")?;
                 }
                 BinOp::Multiplication => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\timul rax, rcx")?;
                 }
                 BinOp::Division => {
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcqo")?;
                     writeln!(f, "\t\tidiv rcx")?;
                 }
                 BinOp::Equal => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcmp rax, rcx")?;
                     writeln!(f, "\t\tmov rax, 0")?;
                     writeln!(f, "\t\tsete al")?;
@@ -258,8 +292,10 @@ impl ASMGenerator {
                 BinOp::NotEqual => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcmp rax, rcx")?;
                     writeln!(f, "\t\tmov rax, 0")?;
                     writeln!(f, "\t\tsetne al")?;
@@ -267,8 +303,10 @@ impl ASMGenerator {
                 BinOp::LessThan => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcmp rax, rcx")?;
                     writeln!(f, "\t\tmov rax, 0")?;
                     writeln!(f, "\t\tsetg al")?;
@@ -276,8 +314,10 @@ impl ASMGenerator {
                 BinOp::LessThanOrEqual => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcmp rax, rcx")?;
                     writeln!(f, "\t\tmov rax, 0")?;
                     writeln!(f, "\t\tsetge al")?;
@@ -285,8 +325,10 @@ impl ASMGenerator {
                 BinOp::GreaterThan => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcmp rax, rcx")?;
                     writeln!(f, "\t\tmov rax, 0")?;
                     writeln!(f, "\t\tsetl al")?;
@@ -294,8 +336,10 @@ impl ASMGenerator {
                 BinOp::GreaterThanOrEqual => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcmp rax, rcx")?;
                     writeln!(f, "\t\tmov rax, 0")?;
                     writeln!(f, "\t\tsetle al")?;
@@ -325,8 +369,10 @@ impl ASMGenerator {
                 BinOp::Modulo => {
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tcqo")?;
                     writeln!(f, "\t\tidiv rcx")?;
                     writeln!(f, "\t\tmov rax, rdx")?;
@@ -334,44 +380,87 @@ impl ASMGenerator {
                 BinOp::BitwiseAnd => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tand rax, rcx")?;
                 }
                 BinOp::BitwiseOr => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tor rax, rcx")?;
                 }
                 BinOp::BitwiseXor => {
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\txor rax, rcx")?;
                 }
                 BinOp::ShiftLeft => {
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tshl rax, cl")?;
                 }
                 BinOp::ShiftRight => {
                     self.write_asm_expression(right, var_map, f)?;
                     writeln!(f, "\t\tpush rax")?;
+                    self.stack_index -= 8;
                     self.write_asm_expression(left, var_map, f)?;
                     writeln!(f, "\t\tpop rcx")?;
+                    self.stack_index += 8;
                     writeln!(f, "\t\tshr rax, cl")?;
                 }
             }
             ASTExpression::VarRef(ime) => {
                 let offset = var_map.get(ime).expect("use of undeclared variable");
-                writeln!(f, "\t\tmov rax, qword [rbp - {}]", -offset)?;
+                if *offset < 0 {
+                    writeln!(f, "\t\tmov rax, qword [rbp - {}]", -offset)?;
+                } else {
+                    writeln!(f, "\t\tmov rax, qword [rbp + {}]", offset)?;
+                }
             }
-            _ => todo!(),
+            ASTExpression::FunctionCall(ime, args) => {
+                if let Some(arg_count) = self.func_map.get(ime) {
+                    if *arg_count != args.len() {
+                        panic!("error calling a function '{}' with {} arguments,\nthe function requires {} arguments", ime, args.len(), arg_count);
+                    }
+                }
+                else {
+                    panic!("error calling a function '{}', does not exist", ime);
+                }
+
+                for (i, arg_expr) in args.iter().enumerate() {
+                    self.write_asm_expression(arg_expr, var_map, f)?;
+                    writeln!(f, "\t\tmov {}, rax", ARG_REGS[i])?;
+                }
+
+                let to_align = 16 - (-self.stack_index) % 16;
+                if to_align != 16 {
+                    writeln!(f, "\t\tsub rsp, {}", to_align)?;
+                }
+
+                if ime == "putchar" {
+                    writeln!(f, "\t\tcall [rel {} wrt ..got]", ime)?;
+                } else {
+                    writeln!(f, "\t\tcall {}", ime)?;
+                }
+
+                if to_align != 16 {
+                    writeln!(f, "\t\tadd rsp, {}", to_align)?;
+                }
+            }
         }
         Ok(())
     }
@@ -381,3 +470,4 @@ impl ASMGenerator {
         self.next_label_id
     }
 }
+

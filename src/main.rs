@@ -4,9 +4,12 @@ use std::io::{self, Write};
 use std::process::Command;
 use std::{env, fs::File};
 
+use crate::validation::validate;
+
 mod ast;
 mod generator;
 mod lexer;
+mod validation;
 
 // https://norasandler.com/2017/11/29/Write-a-Compiler.html
 
@@ -61,6 +64,14 @@ fn main() {
     let ast = ASTProgram::parse(&tokens);
     dbg!(&ast);
 
+    let func_map = match validate(&ast) {
+        Ok(func_map) => func_map,
+        Err(_) => {
+            println!("compilation failed (validation error)");
+            std::process::exit(1)
+        }
+    };
+
     let mut file = match File::create(asm_file) {
         Ok(f) => f,
         Err(e) => {
@@ -69,8 +80,8 @@ fn main() {
         }
     };
 
-    ASMGenerator::write_asm(&ast, &mut file).unwrap();
-    ASMGenerator::write_asm(&ast, &mut io::stdout()).unwrap();
+    ASMGenerator::write_asm(&ast, func_map.clone(), &mut file).unwrap();
+    ASMGenerator::write_asm(&ast, func_map, &mut io::stdout()).unwrap();
 
     file.flush().unwrap();
 

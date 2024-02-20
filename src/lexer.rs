@@ -233,7 +233,7 @@ fn word_to_tok(word: String) -> Result<Tok, LexError> {
         }
     }
     else {
-        if word.chars().all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit()) {
+        if word.chars().all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_') {
             return Ok(Tok::Identifier(word));
         } else {
             return Err(LexError {

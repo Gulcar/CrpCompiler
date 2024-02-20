@@ -1,29 +1,33 @@
 
 func main() int {
-    int a = 0;
-
-    #while a < 0 {
-    #    a += 3;
-    #}
-
-    #do {
-    #    a += 1;
-    #} while a < 0;
-
-    for i in 0..10 {
-        if i % 2 == 1 {
-            continue;
-        }
-        a += 4;
-    }
-
-    a = sestej(5, 3) + 3;
-
+    int a = sestej(3, 2);
+    pozdravi_svet();
     return a;
 }
 
 func sestej(int a, int b) int {
-    #return a + b;
-    return -1;
+    return a + b;
+}
+
+func pozdravi_svet() int {
+    putchar(80);
+    putchar(111);
+    putchar(122);
+    putchar(100);
+    putchar(114);
+    putchar(97);
+    putchar(118);
+    putchar(106);
+    putchar(101);
+    putchar(110);
+    putchar(32);
+    putchar(115);
+    putchar(118);
+    putchar(101);
+    putchar(116);
+    putchar(33);
+    putchar(33);
+    putchar(33);
+    putchar(10);
 }
 
