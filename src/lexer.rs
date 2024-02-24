@@ -181,6 +181,14 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             }
             vec.push(tok);
         }
+        else if c == '\'' {
+            trenutna_beseda.push(c);
+            for _ in 0..2 {
+                trenutna_beseda.push(chars.next().unwrap());
+            }
+            vec.push(word_to_tok(trenutna_beseda)?);
+            trenutna_beseda = String::new();
+        }
         else {
             trenutna_beseda.push(c);
         }
@@ -209,7 +217,11 @@ fn word_to_tok(word: String) -> Result<Tok, LexError> {
         _ => {}
     }
 
-    if word.chars().nth(0).unwrap().is_numeric() {
+    if word.chars().nth(0) == Some('\'') && word.chars().nth(2) == Some('\'') {
+        assert_eq!(word.chars().count(), 3);
+        Ok(Tok::IntLiteral(word.chars().nth(1).unwrap() as i32))
+    }
+    else if word.chars().nth(0).unwrap().is_numeric() {
         let mut base = 10;
         let mut s = word.as_str();
         if let Some(nov_s) = s.strip_prefix("0x") {
@@ -234,12 +246,12 @@ fn word_to_tok(word: String) -> Result<Tok, LexError> {
     }
     else {
         if word.chars().all(|c| c.is_ascii_alphabetic() || c.is_ascii_digit() || c == '_') {
-            return Ok(Tok::Identifier(word));
+            Ok(Tok::Identifier(word))
         } else {
-            return Err(LexError {
+            Err(LexError {
                 kind: LexErrorKind::InvalidCharacter,
                 word,
-            });
+            })
         }
     }
 }

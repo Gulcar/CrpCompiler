@@ -1,33 +1,60 @@
 
 func main() int {
     int a = sestej(3, 2);
-    pozdravi_svet();
-    return a;
+    for i in 0..a {
+        pozdravi_svet();
+    }
+    pozdravi_osebo();
+    return fib(10);
 }
 
 func sestej(int a, int b) int {
     return a + b;
 }
 
+func putchar6(int a, int b, int c, int d, int e, int f) int {
+    putchar(a);
+    putchar(b);
+    putchar(c);
+    putchar(d);
+    putchar(e);
+    putchar(f);
+}
+
 func pozdravi_svet() int {
-    putchar(80);
-    putchar(111);
-    putchar(122);
-    putchar(100);
-    putchar(114);
-    putchar(97);
-    putchar(118);
-    putchar(106);
-    putchar(101);
-    putchar(110);
-    putchar(32);
-    putchar(115);
-    putchar(118);
-    putchar(101);
-    putchar(116);
-    putchar(33);
-    putchar(33);
-    putchar(33);
+    putchar6('P', 'o', 'z', 'd', 'r', 'a');
+    putchar6('v', 'l', 'j', 'e', 'n', ' ');
+    putchar6('s', 'v', 'e', 't', '!', '!');
+    putchar(10);
+}
+
+func fib(int n) int {
+    if n == 0 || n == 1 {
+        return 1;
+    } else {
+        return fib(n - 1) + fib(n - 2);
+    }
+}
+
+func pozdravi_osebo() int {
+    putchar6('i', 'm', 'e', ':', ' ', ' ');
+
+    int a = getchar();
+
+    putchar6('z', 'i', 'v', 'j', 'o', ' ');
+    putchar('>');
+
+    int new_line = 10;
+    while a != new_line {
+        putchar(a);
+        a = getchar();
+    }
+
+    putchar('<');
+
+    putchar6(' ', 'k', 'a', 'k', 'o', ' ');
+    putchar6('s', 'i', ' ', 'k', 'a', 'j');
+    putchar('?');
     putchar(10);
 }
 

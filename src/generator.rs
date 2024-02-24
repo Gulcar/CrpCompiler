@@ -1,4 +1,4 @@
-use crate::{ast::*, validation::FunctionMap};
+use crate::{ast::*, validation::{FunctionMap, CSTD_FUNCTIONS}};
 use std::{collections::HashMap, io::{self, Write}};
 
 pub struct ASMGenerator {
@@ -23,7 +23,9 @@ impl ASMGenerator {
     pub fn write_asm<W: Write>(ast_node: &ASTProgram, func_map: FunctionMap, f: &mut W) -> io::Result<()> {
         let mut generator = ASMGenerator::new(func_map);
         writeln!(f, "\t\tglobal main")?;
-        writeln!(f, "\t\textern putchar")?;
+        for func_name in CSTD_FUNCTIONS.keys() {
+            writeln!(f, "\t\textern {}", func_name)?;
+        }
         writeln!(f, "\t\tsection .text")?;
         for func in ast_node.functions.iter() {
             generator.write_asm_function(func, f)?;
@@ -451,7 +453,7 @@ impl ASMGenerator {
                     writeln!(f, "\t\tsub rsp, {}", to_align)?;
                 }
 
-                if ime == "putchar" {
+                if CSTD_FUNCTIONS.get(ime).is_some() {
                     writeln!(f, "\t\tcall [rel {} wrt ..got]", ime)?;
                 } else {
                     writeln!(f, "\t\tcall {}", ime)?;
