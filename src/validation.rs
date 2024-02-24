@@ -9,6 +9,9 @@ lazy_static! {
     pub static ref CSTD_FUNCTIONS: FunctionMap = HashMap::from([
         ("putchar".to_string(), 1),
         ("getchar".to_string(), 0),
+        ("time".to_string(), 1),
+        ("rand".to_string(), 0),
+        ("srand".to_string(), 1),
     ]);
 }
 

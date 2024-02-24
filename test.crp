@@ -5,8 +5,9 @@ func main() int {
         pozdravi_svet();
     }
     arr_test();
-    pozdravi_z_arrajem();
+    #pozdravi_z_arrajem();
     #pozdravi_osebo();
+    vislice();
     return fib(10);
 }
 
@@ -65,9 +66,9 @@ func pozdravi_z_arrajem() int {
 
     int input[64];
     int input_len = 0;
-    int a;
+    #int a;
     for i in 0..64 {
-        a = getchar();
+        int a = getchar();
         if a == 10 {
             break;
         }
@@ -109,3 +110,125 @@ func arr_test() int {
     putchar(10);
 }
 
+func izpisi_stevilo(int a) int {
+    if a != 0 {
+        int d = a % 10;
+        izpisi_stevilo(a / 10);
+        putchar(d + '0');
+    }
+}
+
+func vislice() int {
+
+    int iskano[16];
+    int iskano_len;
+
+    int uganil_st = 0;
+    int uganil[16];
+    for i in 0..16 {
+        uganil[i] = 0;
+    }
+
+    izpisi_stevilo(time(0));
+    srand(time(0));
+    putchar(10);
+
+    int iskano_i = rand() % 5;
+    if iskano_i == 0 {
+        iskano[0] = 'm';
+        iskano[1] = 'e';
+        iskano[2] = 's';
+        iskano[3] = 'o';
+        iskano_len = 4;
+    }
+    else if iskano_i == 1 {
+        iskano[0] = 'j';
+        iskano[1] = 'a';
+        iskano[2] = 'j';
+        iskano[3] = 'c';
+        iskano[4] = 'a';
+        iskano_len = 5;
+    }
+    else if iskano_i == 2 {
+        iskano[0] = 'm';
+        iskano[1] = 'l';
+        iskano[2] = 'e';
+        iskano[3] = 'k';
+        iskano[4] = 'o';
+        iskano_len = 5;
+    }
+    else if iskano_i == 3 {
+        iskano[0] = 'm';
+        iskano[1] = 'o';
+        iskano[2] = 'k';
+        iskano[3] = 'a';
+        iskano_len = 4;
+    }
+    else if iskano_i == 4 {
+        iskano[0] = 'c';
+        iskano[1] = 'o';
+        iskano[2] = 'm';
+        iskano[3] = 'p';
+        iskano[4] = 'i';
+        iskano[5] = 'l';
+        iskano[6] = 'e';
+        iskano[7] = 'r';
+        iskano_len = 8;
+    }
+
+    for i in 0..3 {
+        putchar(10);
+        for j in 0..iskano_len {
+            if uganil[j] {
+                putchar(iskano[j]);
+            } else {
+                putchar('_');
+            }
+            putchar(' ');
+        }
+        putchar(10);
+
+        if uganil_st == iskano_len {
+            putchar6('b', 'r', 'a', 'v', 'o', ' ');
+            putchar6('u', 'g', 'a', 'n', 'i', 'l');
+            putchar6(' ', 's', 'i', ' ', 'b', 'e');
+            putchar6('s', 'e', 'd', 'o', '!', 10);
+            break;
+        }
+
+        putchar6('U', 'g', 'i', 'b', 'a', 'j');
+        putchar6(' ', 'c', 'r', 'k', 'o', ':');
+        putchar(' ');
+
+        int ugib = getchar();
+        while getchar() != 10 {}
+
+        int uganil_trenutno = 0;
+
+        for j in 0..iskano_len {
+            if ugib == iskano[j] && !uganil[j] {
+                uganil_trenutno = 1;
+                uganil_st += 1;
+                uganil[j] = 1;
+            }
+        }
+
+        if uganil_trenutno {
+            putchar6('u', 'g', 'a', 'n', 'i', 'l');
+            putchar6(' ', 'c', 'r', 'k', 'o', ' ');
+            putchar(ugib);
+            putchar(10);
+            i -= 1;
+        } else {
+            putchar6('n', 'i', ' ', ugib, ' ', 10);
+        }
+    }
+
+    if uganil_st != iskano_len {
+        putchar6(' ', ' ', '-', '-', ' ', 10);
+        putchar6(' ', ' ',  'x', '|', ' ', 10);
+        putchar6(' ', ' ', 'o', '|', ' ', 10);
+        putchar6(' ', ' ', ' ', '|', ' ', 10);
+        putchar6('-', '-', '-', '-', '-', 10);
+    }
+}

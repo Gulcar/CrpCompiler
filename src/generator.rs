@@ -151,9 +151,14 @@ impl ASMGenerator {
                 writeln!(f, "{}:", start_label)?;
                 self.loop_stack.push((cond_label.clone(), end_label.clone()));
 
+                let zacetni_stack_index = self.stack_index;
+
                 let mut var_scope = var_map.clone();
                 for statement in statements {
                     self.write_asm_statement(statement, &mut var_scope, f)?;
+                }
+                if zacetni_stack_index != self.stack_index {
+                    writeln!(f, "\t\tadd rsp, {}", zacetni_stack_index - self.stack_index)?;
                 }
 
                 writeln!(f, "{}:", cond_label)?;
@@ -172,6 +177,8 @@ impl ASMGenerator {
                 writeln!(f, "{}:", start_label)?;
                 self.loop_stack.push((start_label.clone(), end_label.clone()));
 
+                let zacetni_stack_index = self.stack_index;
+
                 self.write_asm_expression(cond, var_map, f)?;
                 writeln!(f, "\t\ttest rax, rax")?;
                 writeln!(f, "\t\tje {}", end_label)?;
@@ -179,6 +186,9 @@ impl ASMGenerator {
                 let mut var_scope = var_map.clone();
                 for statement in statements {
                     self.write_asm_statement(statement, &mut var_scope, f)?;
+                }
+                if zacetni_stack_index != self.stack_index {
+                    writeln!(f, "\t\tadd rsp, {}", zacetni_stack_index - self.stack_index)?;
                 }
                 writeln!(f, "\t\tjmp {}", start_label)?;
 
@@ -194,6 +204,8 @@ impl ASMGenerator {
                 let mut var_scope = var_map.clone();
                 self.write_asm_statement(init, &mut var_scope, f)?;
 
+                let zacetni_stack_index = self.stack_index;
+
                 writeln!(f, "{}:", start_label)?;
                 self.loop_stack.push((step_label.clone(), end_label.clone()));
 
@@ -206,6 +218,9 @@ impl ASMGenerator {
                 }
                 writeln!(f, "{}:", step_label)?;
                 self.write_asm_statement(step, &mut var_scope, f)?;
+                if zacetni_stack_index != self.stack_index {
+                    writeln!(f, "\t\tadd rsp, {}", zacetni_stack_index - self.stack_index)?;
+                }
                 writeln!(f, "\t\tjmp {}", start_label)?;
 
                 writeln!(f, "{}:", end_label)?;
