@@ -32,6 +32,10 @@ pub enum ASTStatement {
     Break,
     // klic funkcije ASTExpression::FunctionCall
     FunctionCall(ASTExpression),
+    // ime spremenljivke in stevilo elementov
+    ArrayDeclaration(String, usize),
+    // ime spremenljivke, index in nova vrednost
+    ArrayAssignment(String, ASTExpression, ASTExpression),
 }
 
 #[derive(Debug, PartialEq)]
@@ -46,6 +50,8 @@ pub enum ASTExpression {
     VarRef(String),
     // ime funkcije in seznam argumentov
     FunctionCall(String, Vec<ASTExpression>),
+    // ime arraya in index
+    ArrayElementRef(String, Box<ASTExpression>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -172,6 +178,17 @@ impl ASTStatement {
                     Tok::Identifier(ref name) => name,
                     _ => panic!("not a variable name {:?}", tokens[1]),
                 };
+
+                if tokens[2] == Tok::OpenBracket {
+                    assert_eq!(tokens.len(), 6);
+                    assert_eq!(tokens[4], Tok::CloseBracket);
+                    if let Tok::IntLiteral(count) = tokens[3] {
+                        return ASTStatement::ArrayDeclaration(var_name.clone(), count as usize);
+                    } else {
+                        panic!("array size should be an int literal");
+                    }
+                }
+
                 let expr = if tokens[2] == Tok::Assignment {
                     Some(ASTExpression::parse(&tokens[3..(tokens.len() - 1)]))
                 } else {
@@ -230,6 +247,13 @@ impl ASTStatement {
                             _ => panic!("not a function call {:?}", tokens),
                         }
                         ASTStatement::FunctionCall(call_expr)
+                    }
+                    Tok::OpenBracket => {
+                        let assign_pos = tokens.iter().position(|t| *t == Tok::Assignment).unwrap();
+                        assert_eq!(tokens[assign_pos - 1], Tok::CloseBracket);
+                        let index = ASTExpression::parse(&tokens[2..(assign_pos - 1)]);
+                        let expr = ASTExpression::parse(&tokens[(assign_pos + 1)..(tokens.len() - 1)]);
+                        ASTStatement::ArrayAssignment(id.clone(), index, expr)
                     }
                     _ => panic!("invalid assignment or function call {:?}", tokens[1])
                 }
@@ -405,6 +429,13 @@ impl ASTExpression {
                 Box::new(ASTExpression::parse(&tokens[0..(*i)])),
                 Box::new(ASTExpression::parse(&tokens[(*i + 1)..]))
             );
+        }
+
+        if let Tok::Identifier(ref array) = tokens[0] {
+            if tokens[1] == Tok::OpenBracket && *tokens.last().unwrap() == Tok::CloseBracket {
+                let index = ASTExpression::parse(&tokens[2..(tokens.len() - 1)]);
+                return ASTExpression::ArrayElementRef(array.clone(), Box::new(index));
+            }
         }
 
         match tokens[0] {

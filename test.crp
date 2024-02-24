@@ -4,7 +4,9 @@ func main() int {
     for i in 0..a {
         pozdravi_svet();
     }
-    pozdravi_osebo();
+    arr_test();
+    pozdravi_z_arrajem();
+    #pozdravi_osebo();
     return fib(10);
 }
 
@@ -55,6 +57,55 @@ func pozdravi_osebo() int {
     putchar6(' ', 'k', 'a', 'k', 'o', ' ');
     putchar6('s', 'i', ' ', 'k', 'a', 'j');
     putchar('?');
+    putchar(10);
+}
+
+func pozdravi_z_arrajem() int {
+    putchar6('a', 'r', 'r', ' ', ':', ' ');
+
+    int input[64];
+    int input_len = 0;
+    int a;
+    for i in 0..64 {
+        a = getchar();
+        if a == 10 {
+            break;
+        }
+        input[i] = a;
+        input_len += 1;
+    }
+
+    putchar6('v', 'a', 'v', ' ', '>', ' ');
+
+    for i in 0..input_len {
+        putchar(input[i]);
+    }
+
+    putchar6(' ', '<', ' ', 'k', 'u', 'l');
+    putchar(10);
+}
+
+func arr_test() int {
+    int a = 0;
+    int arr[3];
+    int b = 0;
+
+    arr[0] = -1;
+    arr[1] = -2;
+    arr[2] = -3;
+
+    if arr[0] != -1 {
+        putchar6('E', 'r', 'r', '-', '1', 10);
+    }
+    if arr[1] != -2 {
+        putchar6('E', 'r', 'r', '-', '2', 10);
+    }
+    if arr[2] != -3 {
+        putchar6('E', 'r', 'r', '-', '3', 10);
+    }
+
+    putchar(a + '0');
+    putchar(b + '0');
     putchar(10);
 }
 

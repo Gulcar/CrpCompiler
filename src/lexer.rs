@@ -23,6 +23,8 @@ pub enum Tok {
     CloseParens,        // )
     OpenBrace,          // {
     CloseBrace,         // }
+    OpenBracket,        // [
+    CloseBracket,       // ]
     Semicolon,          // ;
     Negation,           // -
     BitwiseComplement,  // ~
@@ -156,6 +158,8 @@ fn lex_line(line: &str, vec: &mut Vec<Tok>) -> Result<(), LexError> {
             ')' => Some(Tok::CloseParens),
             '{' => Some(Tok::OpenBrace),
             '}' => Some(Tok::CloseBrace),
+            '[' => Some(Tok::OpenBracket),
+            ']' => Some(Tok::CloseBracket),
             ';' => Some(Tok::Semicolon),
             '-' => Some(Tok::Negation),
             '~' => Some(Tok::BitwiseComplement),

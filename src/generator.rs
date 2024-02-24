@@ -98,6 +98,25 @@ impl ASMGenerator {
                     writeln!(f, "\t\tmov qword [rbp + {}], rax", offset)?;
                 }
             }
+            ASTStatement::ArrayDeclaration(ime, size) => {
+                if var_map.contains_key(ime) {
+                    panic!("variable '{}' declared twice", ime);
+                }
+                writeln!(f, "\t\tsub rsp, {}", size * 8)?;
+                self.stack_index -= (*size as i32) * 8;
+                var_map.insert(ime.clone(), self.stack_index);
+            }
+            ASTStatement::ArrayAssignment(ime, index, expr) => {
+                self.write_asm_expression(index, var_map, f)?;
+                writeln!(f, "\t\tpush rax")?;
+                self.stack_index -= 8;
+                self.write_asm_expression(expr, var_map, f)?;
+                writeln!(f, "\t\tpop rcx")?;
+                self.stack_index += 8;
+
+                let offset = var_map.get(ime).expect("use of undeclared array");
+                writeln!(f, "\t\tmov qword [rbp - {} + rcx * 8], rax", -offset)?;
+            }
             ASTStatement::IfElse(cond, if_body, else_body) => {
                 let label_id = self.create_label_id();
 
@@ -432,6 +451,11 @@ impl ASMGenerator {
                 } else {
                     writeln!(f, "\t\tmov rax, qword [rbp + {}]", offset)?;
                 }
+            }
+            ASTExpression::ArrayElementRef(array, index) => {
+                self.write_asm_expression(index, var_map, f)?;
+                let offset = var_map.get(array).expect("use of undeclared array");
+                writeln!(f, "\t\tmov rax, qword [rbp - {} + rax * 8]", -offset)?;
             }
             ASTExpression::FunctionCall(ime, args) => {
                 if let Some(arg_count) = self.func_map.get(ime) {
